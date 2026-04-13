@@ -28,3 +28,4 @@ tmp/*.*
 CVS
 log1
 log2
+/cvsnt/tortoiseCVS/TortoiseCVS/build/vc18x64

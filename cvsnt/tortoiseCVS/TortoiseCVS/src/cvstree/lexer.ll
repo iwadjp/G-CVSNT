@@ -40,7 +40,7 @@ public:
    { 
       if (yy_start_stack)
 	  {
-	     yy_flex_free(yy_start_stack); 
+	     free(yy_start_stack);
 		 yy_start_stack = 0;
 	  }
    }

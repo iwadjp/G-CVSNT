@@ -1,0 +1,24 @@
+# ビルド成果物
+**/Releasex64/
+**/Release/
+**/Debug/
+**/x64/
+**/*.obj
+**/*.pdb
+**/*.lib
+**/*.exp
+**/*.ilk
+**/*.tlog
+
+# CMakeキャッシュ
+**/CMakeFiles/
+**/vc18x64/
+**/.cmake/
+
+# wxWidgets（巨大・変更しない）
+**/wxw/
+
+# 中間ファイル
+**/*.user
+**/*.suo
+**/.vs/

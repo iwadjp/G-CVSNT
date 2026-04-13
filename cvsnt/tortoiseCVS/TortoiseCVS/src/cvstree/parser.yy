@@ -60,6 +60,8 @@
    int lval;
 }
 
+%code requires { struct ParserData; class FlexLexer; }
+
 %lex-param{FlexLexer *lexer}
 %parse-param{FlexLexer *lexer}
 %parse-param{ParserData *parserData}

@@ -19,7 +19,7 @@
 
 PROJECT(TortoiseCVS)
 
-CMAKE_MINIMUM_REQUIRED(VERSION 2.6.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 
 CMAKE_POLICY(SET CMP0001 NEW)
 CMAKE_POLICY(SET CMP0002 NEW)
@@ -61,12 +61,12 @@ MACRO(ADD_FLEX_FILES)
 
 	ADD_CUSTOM_COMMAND(
             OUTPUT ${_out}
-            COMMAND D:/CVSNT/GnuWin32/bin/flex++${CMAKE_EXECUTABLE_SUFFIX}
+            COMMAND C:/winflexbison/flex${CMAKE_EXECUTABLE_SUFFIX}
             ARGS
 	    -+ -d -S${CMAKE_CURRENT_SOURCE_DIR}/flex.skl
             -o${_out}
             ${_in}
-	    WORKING_DIRECTORY "D:/CVSNT/GnuWin32/bin"
+	    WORKING_DIRECTORY "C:/winflexbison"
             DEPENDS ${_in})
 
 	LIST(APPEND CPP_SOURCE ${_out})
@@ -83,10 +83,10 @@ MACRO(ADD_BISON_FILES)
 
     ADD_CUSTOM_COMMAND(
             OUTPUT ${_out}
-            COMMAND D:/CVSNT/GnuWin32/bin/bison${CMAKE_EXECUTABLE_SUFFIX}
+            COMMAND C:/winflexbison/bison${CMAKE_EXECUTABLE_SUFFIX}
             ARGS
-            --name-prefix=getdate_ -o ${_out} -d ${_in} -S yacc.c
-	    WORKING_DIRECTORY "D:/CVSNT/GnuWin32/bin"
+            --name-prefix=getdate_ -o ${_out} -d ${_in}
+	    WORKING_DIRECTORY "C:/winflexbison"
             DEPENDS ${_in})
 
 	LIST(APPEND CPP_SOURCE ${_out})
@@ -254,3 +254,4 @@ ADD_SUBDIRECTORY(../src/TranslateIss TranslateIss)
 
 # Unit tests
 ADD_SUBDIRECTORY(../src/Test/UnitTests UnitTest)
+
