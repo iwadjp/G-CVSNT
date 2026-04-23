@@ -1,6 +1,6 @@
 # G-CVSNT ビルド進捗メモ
 
-**作業日**: 2026-04-13  
+**作業日**: 2026-04-13 / 更新: 2026-04-14  
 **対象リポジトリ**: G-CVSNT (Gaijin/Gamedev 向け CVSNT 改良版)  
 **ソースバージョン**: cvsnt-2.5.05.3744
 
@@ -352,6 +352,7 @@ TortoiseCVS\
 
 - **32bit `TortoiseShell.dll` は未ビルド**: vc18x64 ビルドのみのため x64 版のみ
 - `vcredist_x64.exe` は未同梱 (別途 Visual Studio 2022 再頒布可能パッケージを用意すること)
+- **`TortoiseMenus.config` を追加 (2026-04-14)**: 右クリックメニュー定義ファイル。未同梱だとメニュー項目が表示されない。`C:\Ap\TortoiseCVS64\` からコピーして `TortoiseCVS-x64\` に追加済み
 
 ### Step 4: レジストリファイルの最終化 ✅ 完了 (2026-04-13)
 
@@ -413,6 +414,250 @@ TortoiseCVS\
 
 #### 未確認 (サーバー用途時のみ必要)
 - pserver / ssh 接続 (cvscontrol.exe -i でサービス登録後に確認)
+
+---
+
+### Step 6 追記: 業務PC展開で判明した追加要件 (2026-04-14)
+
+業務 PC での動作確認で以下の 3 点が必要とわかった。
+
+#### 追加要件 1: TortoiseMenus.config が必須
+
+- **事象**: 配布パッケージに `TortoiseMenus.config` が含まれていないと右クリックメニューが表示されない
+- **対処**: `C:\Ap\TortoiseCVS64\TortoiseMenus.config` を `dist\TortoiseCVS-x64\` にコピー済み ✅
+- **備考**: Step 3 の備考にも記録済み
+
+#### 追加要件 2: cvslock サービスの起動が必須 (ネットワーク共有リポジトリ)
+
+- **事象**: ネットワーク共有 (UNCパス/ネットワークドライブ) 上のリポジトリへアクセスすると  
+  `Couldn't connect to lock server` エラーが発生
+- **原因**: `cvslock` サービスが停止/未登録
+- **対処手順**:
+  ```cmd
+  cvslock.exe -i      # Windows サービスとして登録
+  net start cvslock   # サービス起動
+  ```
+- **反映済みファイル**:
+  - `dist\Install-Guide.md` — Step 3-2 に手順追加、トラブルシューティングに対処法追加 ✅
+  - `dist\register-tortoisecvs.ps1` — cvslock 登録・起動ブロック追加 ✅
+
+#### 追加要件 3: TortoiseCVS の「Allow Network Drives」設定が必要
+
+- **事象**: ネットワークドライブ (`Z:\` 等) 上のフォルダで CVS コンテキストメニューが表示されない
+- **対処**: TortoiseCVS の Preferences → Look & Feel → **「Allow Network Drives」をオン**にする
+- **反映済みファイル**:
+  - `dist\Install-Guide.md` — Step 3-3 に設定手順追加 ✅
+  - `dist\register-tortoisecvs.ps1` — 完了メッセージに案内を追記 ✅
+
+---
+
+### Step 7: 日本語ファイル名の文字化け修正 ✅ 完了 (2026-04-23)
+
+#### 症状
+- `cvs update` / `cvs checkout` で日本語ファイル名が文字化けする
+- CVS/Entries に日本語名が Shift-JIS (CP932) で格納されているが CVSNT 3.5.24 が UTF-8 として処理するためミスマッチが発生
+- 旧動作: `warning: 新しいテキスト ドキュメント.txt is not (any longer) pertinent` → Scratch_Entry → 毎回再チェックアウト
+
+#### 根本原因
+`windows-NT/win32.cpp:43` の初期値が `CP_UTF8`:
+```c
+int win32_global_codepage = CP_UTF8;  // ← 修正前
+```
+この値が `CFileAccess::Win32SetUtf8Mode()` を経由して `cvsapi/win32/FileAccess.cpp` の `Win32Wide`/`Win32Narrow` (MultiByteToWideChar/WideCharToMultiByte) 全呼び出しのコードページを決定する。CVS 1.11 が CP932 で書いた Entries のファイル名を UTF-8 として変換 → 文字化けの無限ループ。
+
+#### 修正内容
+**ファイル**: `windows-NT/win32.cpp` (1箇所のみ)
+
+```c
+// 修正前
+int win32_global_codepage = CP_UTF8;
+
+// 修正後
+int win32_global_codepage = CP_ACP; /* Use system ANSI codepage (CP932 on Japanese Windows) for Shift-JIS filename compatibility */
+```
+
+#### 影響範囲
+| 箇所 | 変化 |
+|------|------|
+| `FileAccess.cpp` Win32Wide/Narrow | CP_UTF8 → CP_ACP (m_bUtf8Mode 経由で自動切替) |
+| server.cpp コンソール出力 | WriteConsoleW 変換が CP_ACP → 日本語コンソール正常 |
+| server/client.cpp プロトコルネゴシエーション | "UTF-8" → "Shift_JIS" 宣言 |
+| `cvsapi.dll` の再ビルド | 不要 (m_bUtf8Mode=false がデフォルト値) |
+
+#### 動作確認結果
+- CVS 1.11 チェックアウト (CP932 Entries) + CVSNT update: 日本語ファイルが "not pertinent" にならず T_UPTODATE として正常処理 ✅
+- CVSNT 新規 checkout: 日本語ファイル名がディスクに正しく作成、Entries に CP932 で正しく格納 ✅
+- ASCII ファイルの update (1.12→1.13): 引き続き正常 ✅
+
+#### ビルド・配布
+- [x] `cvsnt.sln` / `cvsnt` プロジェクトのみ再ビルド (Release/x64)
+- [x] `Releasex64\cvs.exe` (1,893,376 bytes, 2026-04-23) を `dist\TortoiseCVS-x64\cvs.exe` にコピー済み
+
+---
+
+### Step 8: TortoiseAct の cvs.exe パス解決バグ修正 ✅ 完了 (2026-04-23)
+
+#### 調査結果: cvs.exe の呼び出しパス
+
+TortoiseAct.exe が cvs.exe を特定する仕組み (`src/CVSGlue/MakeArgs.cpp`):
+
+1. `HKLM\Software\Cvs\PServer\InstallPath` を読む → **このキーは存在しない** (WOW6432Node 下にリポジトリ設定はあるが InstallPath なし)
+2. フォールバック: PATH で `"cvs.exe"` を検索
+
+#### 問題
+
+PATH に `C:\Ap\TortoiseCVS\cvsnt-legacy-20170126\cvs.exe` (CVSNT 2.5.05 Build 6234) が存在し、TortoiseAct が追加する dist ディレクトリより先に見つかる:
+
+```
+// TortoiseAct.cpp:135 (修正前) - 末尾に追加するため古いcvs.exeが先に使われる
+SetEnvVar("PATH", GetEnvVar("PATH") + ";" + GetTortoiseDirectory());
+```
+
+また `src/CVSGlue/CVSStatus.cpp` も MakeArgs を使って cvs.exe を起動する（アイコンオーバーレイ更新用）。
+
+#### 修正内容
+
+**修正1: `src/TortoiseAct/TortoiseAct.cpp:135`** — PATH を末尾追加→先頭追加
+
+```cpp
+// 修正前
+SetEnvVar("PATH", GetEnvVar("PATH") + ";" + GetTortoiseDirectory());
+// 修正後
+SetEnvVar("PATH", GetTortoiseDirectory() + ";" + GetEnvVar("PATH"));
+```
+
+**修正2: `src/CVSGlue/MakeArgs.cpp`** — TortoiseDirectory の cvs.exe を明示的に優先
+
+```cpp
+// 修正後 (HKLM\...\InstallPath も TortoiseDirectory\cvs.exe も見つからない場合の最終フォールバック前に挿入)
+if (myOptions.empty())
+{
+    std::string tortoiseExe = EnsureTrailingDelimiter(GetTortoiseDirectory()) + "cvs.exe";
+    if (FileExists(tortoiseExe.c_str()))
+        myOptions.push_back(tortoiseExe);
+}
+if (myOptions.empty())
+    myOptions.push_back("cvs.exe");
+```
+
+#### ビルド・配布
+
+- [x] `TortoiseAct.exe` 再ビルド → `dist\TortoiseCVS-x64\TortoiseAct.exe` 更新 (2026-04-23)
+- [x] `TortoiseShell.dll` 再ビルド → `dist\TortoiseCVS-x64\TortoiseShell64.dll` 更新 (2026-04-23)
+- [x] `C:\Ap\TortoiseCVS64\TortoiseShell.dll` も同時更新 (Explorer 再起動して適用済み)
+- [x] `GetTortoiseDirectory()` は `HKLM\SOFTWARE\TortoiseCVS\RootDir` を読む (64bit: `dist\TortoiseCVS-x64\`)
+
+#### Process Monitor での確認方法 (業務PC)
+
+TortoiseCVS の update 実行時にどの cvs.exe が呼ばれているかを確認する手順:
+
+1. [Sysinternals Process Monitor](https://learn.microsoft.com/ja-jp/sysinternals/downloads/procmon) を起動
+2. フィルタ設定: `Process Name is TortoiseAct.exe` AND `Operation is Process Create`
+3. TortoiseCVS から任意のフォルダを右クリック → Update
+4. Process Monitor の Detail 列で起動された cvs.exe のフルパスを確認
+
+期待値: `D:\iwa\AI\Claude\cvs_app\dist\TortoiseCVS-x64\cvs.exe` (CVSNT 3.5.24 Build 9605)
+問題あり: `C:\Ap\TortoiseCVS\cvsnt-legacy-20170126\cvs.exe` (CVSNT 2.5.05 Build 6234)
+
+---
+
+### Step 9: ConflictファイルがOutputに表示されない問題 🔍 調査中 (2026-04-23)
+
+#### 症状
+
+`cvs update` でコンフリクトが発生した際:
+- Output ダイアログに `U filename` は表示される ✅
+- Tortoise Tip「C マークのファイルを手動でマージしてください」は表示される ✅
+- **`C filename` 行が Output 欄に表示されない** ❌
+- コンフリクトファイル一覧ダイアログ (`DoConflictListDialog`) が表示されない ❌
+- 「Error, CVS operation failed」は表示される (stderr 経由) ✅
+
+#### 調査済みの流れ
+
+```
+CVSNT update.cpp
+  → RCS_merge でコンフリクト発生 (status=1)
+  → time_stamp(file) で T1 を取得
+  → Register() で CVS/Entries に ts_conflict=T1 を書き込む
+  → error() → cvs_outerr() → CCvsgui::write(isStderr=true)  ← stderr
+  → write_letter('C')
+      → cvs_output_tagged("text", "C ")
+      → cvs_output_tagged("fname", filename)
+      → cvs_output_tagged("newline", NULL)
+      → cvs_output() → CCvsgui::write(isStderr=false)  ← stdout
+
+TortoiseAct CVSAction.cpp
+  → ConsoleOut("C "), ConsoleOut("filename"), ConsoleOut("\n")
+  → myStdoutLine に "C filename" を組み立て → myConsoleOutput へ push
+  → PipeToGUI():
+      stdout: ProcessStdoutLine() → myStdOutStore に格納
+              myShowStdout=true → vLines に追加 → Progress Dialog に表示
+              GetType("C filename") → TTConflict (赤色) で表示のはず
+
+PerformUpdateMenu()
+  → glue.Command() 完了後
+  → out = glue.GetStdOutList() = myStdOutStore
+  → TortoiseTip が out から "C " を検知 → Tip 表示 ✅
+  → ParseConflicts(group, out, conflictFiles):
+      line = "C filename"
+      line[0]=='C' && line[1]==' ' → 一致
+      file = group.myDirectory + "\" + "filename"
+      【★ここが疑問点★】
+      if (CVSStatus::GetFileStatus(file) == CVSStatus::STATUS_CONFLICT)
+          → この条件が false の場合、conflictFiles に追加されない
+```
+
+#### 根本原因候補 (未確定)
+
+**候補A**: `CVSStatus::GetFileStatus(file)` が `STATUS_CONFLICT` を返さない
+
+`STATUS_CONFLICT` が返る条件 (`CVSStatus.cpp:625`):
+```cpp
+else if (data->NeedsMerge())
+    status = STATUS_CONFLICT;
+```
+
+`NeedsMerge` の設定 (`CvsEntries.cpp:603`):
+```cpp
+data->SetNeedsMerge(unmodified(finfo, ts_conflict));
+```
+
+`unmodified()` は `asctime(gmtime(file.mtime))` と CVS/Entries の `ts_conflict` を文字列比較。
+CVSNT が書く `ts_conflict = time_stamp(file, 0) = asctime(gmtime(mtime))` と同じ形式のため
+**理論上は一致するはず**。タイミング問題 or CVSNT 3.5.24 固有の書式差異の可能性あり。
+
+**候補B**: `ParseConflicts` のファイルパス構築が間違っている
+```cpp
+file = EnsureTrailingDelimiter(group.myDirectory) + line.substr(2, i-2);
+FindAndReplace(file, "/", "\\");
+```
+サブディレクトリ内ファイルや日本語パスで不一致が起きる可能性。
+
+**候補C**: `C filename` が stdout に届いているが Progress Dialog に表示されない
+`GetType("C filename")` → `TTConflict` (赤色) → 表示はされるはず。
+Tortoise Tip が "C " を検知している事実から stdout には存在確認済み。
+
+#### 次回の調査箇所
+
+1. **`CVSGlue/CvsEntries.cpp` の `unmodified()` 関数** (line 455)
+   - CVSNT 3.5.24 の `ts_conflict` 形式と TortoiseCVS の比較形式が一致しているか確認
+   - `asctime()` vs `asctime_r()` の動作差異 (MSVC vs mingw など)
+
+2. **`src/update.cpp` の `Register()` 呼び出し** (line 2432)
+   - `ts` = "Result of merge", `cp` = `time_stamp(file, 0)` が確実に書き込まれているか
+   - `Register()` 後に何らかの理由でファイルが触られる可能性
+
+3. **実際の CVS/Entries 内容を確認** (業務PC)
+   - コンフリクト発生後の CVS/Entries のタイムスタンプフィールドを直接確認
+   - `Result of merge+Thu Apr 23 12:34:56 2026` 形式になっているか
+
+4. **修正方針案**: `GetFileStatus == STATUS_CONFLICT` チェックを緩和
+   - ファイル存在チェックのみに変更し、`ConflictParser::ParseFile` で conflict marker 確認
+
+#### 修正予定ファイル
+
+- `src/TortoiseAct/TortoiseAct.cpp` — `ParseConflicts()` の STATUS_CONFLICT チェック修正
+- 再ビルド: `TortoiseAct.exe` のみ (TortoiseShell.dll は不要)
 
 ---
 

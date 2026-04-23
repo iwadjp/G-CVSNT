@@ -56,6 +56,13 @@ MakeArgs::MakeArgs(const char* cmdname)
         }
     }
     if (myOptions.empty())
+    {
+        // Try cvs.exe from TortoiseCVS installation directory before PATH search
+        std::string tortoiseExe = EnsureTrailingDelimiter(GetTortoiseDirectory()) + "cvs.exe";
+        if (FileExists(tortoiseExe.c_str()))
+            myOptions.push_back(tortoiseExe);
+    }
+    if (myOptions.empty())
         myOptions.push_back("cvs.exe");
 
     // This could be a scoped preference, but I don't think anyone wants that.

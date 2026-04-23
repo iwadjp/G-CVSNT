@@ -131,8 +131,8 @@ TortoiseAct::TortoiseAct()
    // exist, and defaults are as specified in TortoisePreferences.
    TortoisePreferences prefs;
    
-   // Make sure that the TortoiseCVS folder is in the PATH
-   SetEnvVar("PATH", GetEnvVar("PATH") + ";" + GetTortoiseDirectory());
+   // Make sure that the TortoiseCVS folder is in the PATH (prepend to take priority over other cvs.exe)
+   SetEnvVar("PATH", GetTortoiseDirectory() + ";" + GetEnvVar("PATH"));
 }
 
 // Add new verbs here, in TortoiseActVerbs.h/.cpp, and in TortoiseMenus.config.

@@ -40,7 +40,7 @@ static MAKE_SID1(sidEveryone, 1, 0);
 static BOOL g_bSmall; /* Small dump file */
 static BOOL g_bContributeHours; /* Will Contribute Hours */
 
-int win32_global_codepage = CP_UTF8;
+int win32_global_codepage = CP_ACP; /* Use system ANSI codepage (CP932 on Japanese Windows) for Shift-JIS filename compatibility */
 
 /* MS BUG:  DNLEN hasn't been maintained so when you're on a legacy-free win2k domain
     you can apparently get a domain that's >DNLEN in size */
