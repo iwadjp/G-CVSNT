@@ -596,7 +596,7 @@ TortoiseCVS の update 実行時にどの cvs.exe が呼ばれているかを確
 
 ---
 
-### Step 9a: ConflictファイルがOutputに表示されない問題 ⚠️ 修正済み・業務PC確認待ち (2026-04-23)
+### Step 9a: ConflictファイルがOutputに表示されない問題 ✅ 完了（開発環境確認済み・業務PC確認待ち）(2026-04-23)
 
 #### 症状
 
@@ -713,11 +713,13 @@ if (FileExists(file.c_str()) && !CVSStatus::IsBinary(file))
 - [x] `TortoiseAct.exe` 再ビルド (Release/x64, エラーなし) ✅
 - [x] `dist\TortoiseCVS-x64\TortoiseAct.exe` 更新 (2026-04-23 18:15) ✅
 
-#### 動作確認 (業務PC で要確認)
+#### 動作確認
 
-- [ ] Output ダイアログに "C filename" が表示される
-- [ ] コンフリクトファイル一覧ダイアログが出る
-- [ ] 正常ファイル (M, U など) への誤検出がない
+- [x] Output ダイアログに "C filename" が赤字で表示される ✅（開発環境確認済み）
+- [x] 日本語ファイル名も正しく表示される ✅（開発環境確認済み）
+- [x] Tortoise Tip 正常表示 ✅（開発環境確認済み）
+- [ ] コンフリクトファイル一覧ダイアログが出る（業務PC未確認）
+- [ ] 正常ファイル (M, U など) への誤検出がない（業務PC未確認）
 
 ---
 
@@ -886,8 +888,10 @@ end;
 
 #### 残課題
 
-- [ ] `registry.iss` に含まれる一部エントリの deprecation 警告修正 (動作には影響なし)
-- [ ] registry.iss 由来の旧 CLSID (5d1cb71x) と新 CLSID ({06367927} 等) の二重登録を整理
+- [ ] コード署名未対応（`unins000.exe` が「不明な発行元」として表示される）
+- [ ] アンインストール後に OS 再起動が必要（シェル拡張 DLL がロックされるため）
+- [ ] `.iss` スクリプトの deprecation 警告修正（`registry.iss` の一部エントリ、動作には影響なし）
+- [ ] CLSID 未登録の調査（registry.iss 由来の旧 CLSID (5d1cb71x) と新 CLSID ({06367927} 等) の二重登録整理）
 
 ---
 
