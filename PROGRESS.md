@@ -451,7 +451,7 @@ TortoiseCVS\
 
 ---
 
-### Step 7: 日本語ファイル名の文字化け修正 ✅ 完了 (2026-04-23)
+### Step 7: 日本語ファイル名の文字化け修正 ✅ コード修正完了 / 開発PCはテストデータ再作成が必要 (2026-04-23)
 
 #### 症状
 - `cvs update` / `cvs checkout` で日本語ファイル名が文字化けする
@@ -485,9 +485,17 @@ int win32_global_codepage = CP_ACP; /* Use system ANSI codepage (CP932 on Japane
 | `cvsapi.dll` の再ビルド | 不要 (m_bUtf8Mode=false がデフォルト値) |
 
 #### 動作確認結果
-- CVS 1.11 チェックアウト (CP932 Entries) + CVSNT update: 日本語ファイルが "not pertinent" にならず T_UPTODATE として正常処理 ✅
-- CVSNT 新規 checkout: 日本語ファイル名がディスクに正しく作成、Entries に CP932 で正しく格納 ✅
+- CVS 1.11 チェックアウト (CP932 Entries) + CVSNT update: 日本語ファイルが "not pertinent" にならず T_UPTODATE として正常処理 ✅ (業務PC)
+- CVSNT 新規 checkout: 日本語ファイル名がディスクに正しく作成、Entries に CP932 で正しく格納 ✅ (業務PC)
 - ASCII ファイルの update (1.12→1.13): 引き続き正常 ✅
+
+#### ⚠️ 開発PC 固有の問題 (Step 7b)
+
+開発PC のテストリポジトリは**旧 cvs.exe (CP_UTF8 モード)** で作成したため、`CVS/Entries` のファイル名が UTF-8 でエンコードされている。CP_ACP 修正後の cvs.exe でこのリポジトリを読むと文字化けしてファイルが見つからない。
+
+- **根本原因**: `test-work/cvsnt-cp932-checkout/CVS/Entries` の日本語ファイル名部分のバイト列が `E6 96 B0`（"新" の UTF-8）になっている（CP932 では `90 56`）
+- **対処**: テストリポジトリを新 cvs.exe で checkout し直す → CVS/Entries が CP932 で再生成される (→ **Step 7b**)
+- **追加メモ**: `SetConsoleOutputCP(win32_global_codepage)` = `SetConsoleOutputCP(0)` はサイレントに失敗。コンソール出力 CP の修正が必要な場合は `SetConsoleOutputCP(GetACP())` に変更すること
 
 #### ビルド・配布
 - [x] `cvsnt.sln` / `cvsnt` プロジェクトのみ再ビルド (Release/x64)
@@ -561,7 +569,7 @@ TortoiseCVS の update 実行時にどの cvs.exe が呼ばれているかを確
 
 ---
 
-### Step 9: ConflictファイルがOutputに表示されない問題 ✅ 修正済み (2026-04-23)
+### Step 9a: ConflictファイルがOutputに表示されない問題 ⚠️ 修正済み・業務PC確認待ち (2026-04-23)
 
 #### 症状
 
@@ -683,6 +691,90 @@ if (FileExists(file.c_str()) && !CVSStatus::IsBinary(file))
 - [ ] Output ダイアログに "C filename" が表示される
 - [ ] コンフリクトファイル一覧ダイアログが出る
 - [ ] 正常ファイル (M, U など) への誤検出がない
+
+---
+
+---
+
+### Step 7b: 開発PC テストデータ再作成 (未着手)
+
+#### 作業内容
+
+開発PC の `test-work/cvsnt-cp932-checkout/` は旧 cvs.exe (CP_UTF8) で作成したため CVS/Entries の日本語ファイル名が UTF-8 になっている。新 cvs.exe で checkout し直して CP932 の Entries を再生成する。
+
+#### 手順
+
+```cmd
+cd test-work
+rmdir /s /q cvsnt-cp932-checkout
+cvs -d :local:C:/Ap/TortoiseCVS64/test-cvsroot checkout <モジュール名>
+```
+
+実行後、`CVS/Entries` の日本語ファイル名部分のバイト列が CP932 (`90 56` = "新") になっていることを確認する。
+
+---
+
+### Step 9b: TortoiseOverlay アイコン表示対応 ✅ 完了 (2026-04-23)
+
+#### 背景
+
+Windows Explorer の `ShellIconOverlayIdentifiers` は最大15スロットしか処理しない。TortoiseGit 等が先に登録するため TortoiseCVS 独自のスロット (TortoiseCVS0〜6) は枯渇し、アイコンオーバーレイが表示されない。
+
+#### 解決方式：TortoiseOverlays.dll 公式相乗り
+
+TortoiseOverlays.dll は `HKLM\SOFTWARE\TortoiseOverlays\{種別}\{クライアント}` に登録された CLSID を読み取り、各クライアント DLL の `IsMemberOf()` を呼び出してオーバーレイを決定する設計。TortoiseGit のスロット (Tortoise0〜9) 経由で TortoiseOverlays.dll が動作するため、TortoiseCVS はそこに相乗りすれば15スロット制限を回避できる。
+
+#### 修正内容
+
+**1. `src/TortoiseShell/ShellExt.h`** — CVS 用 TortoiseOverlays CLSID 7個を DEFINE_GUID で定義
+
+```cpp
+// CLSIDs registered under HKLM\SOFTWARE\TortoiseOverlays\*\CVS for shared overlay via TortoiseOverlays.dll
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_Normal,      0x06367927, 0x6A25, 0x4087, 0x97, 0xBC, 0x22, 0xE4, 0xC8, 0x19, 0xD7, 0xD3);
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_Modified,    0xDD9F1BBF, 0x004E, 0x4D7E, 0x82, 0xBC, 0x50, 0x9A, 0x79, 0x10, 0x1C, 0x65);
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_Conflict,    0xF2CBE515, 0xCAFA, 0x465B, 0x9E, 0x2C, 0xAB, 0x80, 0x6F, 0x3F, 0x31, 0x3F);
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_Added,       0x3B8D1AB7, 0xE0FD, 0x4C0A, 0xB7, 0x49, 0x0B, 0x5F, 0xCF, 0x8C, 0x13, 0x5B);
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_Ignored,     0x17F29A72, 0xFE71, 0x4A44, 0xB6, 0x4F, 0xB9, 0xF3, 0xA6, 0x0E, 0x3D, 0x94);
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_ReadOnly,    0x407086D3, 0xBB16, 0x4B50, 0xA3, 0xB2, 0xA9, 0x65, 0xC0, 0x02, 0xD7, 0xCF);
+DEFINE_GUID(CLSID_TortoiseCVSOverlay_Unversioned, 0x488E3E10, 0x3D35, 0x4F85, 0x9C, 0x38, 0x14, 0x3E, 0x8D, 0x43, 0x96, 0xC7);
+```
+
+**2. `src/TortoiseShell/ShellExt.cpp` (DllGetClassObject)** — 7 CLSID に対応する CShellExtClassFactory 生成処理を追加
+
+```cpp
+// TortoiseOverlays.dll shared overlay CLSIDs (HKLM\SOFTWARE\TortoiseOverlays\*\CVS)
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Normal))
+    whichClass = TORTOISE_OLE_INCVS;
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Modified))
+    whichClass = TORTOISE_OLE_CHANGED;
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Conflict))
+    whichClass = TORTOISE_OLE_CONFLICT;
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Added))
+    whichClass = TORTOISE_OLE_ADDED;
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Ignored))
+    whichClass = TORTOISE_OLE_IGNORED;
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_ReadOnly))
+    whichClass = TORTOISE_OLE_INCVSREADONLY;
+else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
+    whichClass = TORTOISE_OLE_NOTINCVS;
+```
+
+**3. `build/install64.reg` および `dist/TortoiseCVS-x64/install64.reg`** — 7 CLSID を HKCR\CLSID に COM 登録 + Shell Extensions Approved に追加
+
+#### TortoiseGit への影響
+
+なし。TortoiseGit の CLSID ({C5994560-53D9-4125-87C9-F193FC689CB2} 等) は一切変更していない。
+
+#### ビルド・配布
+
+- [x] `TortoiseShell.dll` 再ビルド → `dist\TortoiseCVS-x64\TortoiseShell64.dll` 更新 (2026-04-23) ✅
+- [x] `install64.reg` (build/ および dist/) に 7 CLSID エントリ追加 ✅
+- [x] レジストリ適用済み (HKCR 部分は reg import で適用、Shell Extensions Approved は管理者 PowerShell で適用) ✅
+
+#### 動作確認 (業務PC で要確認)
+
+- [ ] エクスプローラーで CVS 管理下フォルダにアイコンオーバーレイが表示される
+- [ ] Modified / Conflict / Added / Normal 等の各状態が正しいアイコンで表示される
 
 ---
 
