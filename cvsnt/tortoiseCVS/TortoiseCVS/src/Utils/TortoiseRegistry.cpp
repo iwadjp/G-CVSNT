@@ -49,7 +49,7 @@ DWORD TortoiseRegistry::ourFlag64 = 0;
 void TortoiseRegistry::Init()
 {
     if (WindowsVersionIsXPOrHigher())
-        ourFlag64 = KEY_WOW64_32KEY;
+        ourFlag64 = KEY_WOW64_64KEY;
 }
 
 std::string TortoiseRegistry::ReadString(const std::string& name,

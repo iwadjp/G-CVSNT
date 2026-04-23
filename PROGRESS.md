@@ -451,7 +451,7 @@ TortoiseCVS\
 
 ---
 
-### Step 7: 日本語ファイル名の文字化け修正 ✅ コード修正完了 / 開発PCはテストデータ再作成が必要 (2026-04-23)
+### Step 7: 日本語ファイル名の文字化け修正 ✅ 完全解決 (2026-04-23 / 2026-04-24)
 
 #### 症状
 - `cvs update` / `cvs checkout` で日本語ファイル名が文字化けする
@@ -500,6 +500,33 @@ int win32_global_codepage = CP_ACP; /* Use system ANSI codepage (CP932 on Japane
 #### ビルド・配布
 - [x] `cvsnt.sln` / `cvsnt` プロジェクトのみ再ビルド (Release/x64)
 - [x] `Releasex64\cvs.exe` (1,893,376 bytes, 2026-04-23) を `dist\TortoiseCVS-x64\cvs.exe` にコピー済み
+
+#### 追加修正 (2026-04-24): TortoiseAct から cvs.exe が起動できない問題を解決
+
+**原因1**: `TortoiseRegistry::Init()` が `KEY_WOW64_32KEY` を設定していたため、64bit プロセスが `WOW6432Node`（32bit ハイブ）を参照していた。
+
+```
+WOW6432Node\TortoiseCVS\RootDir = C:\Ap\TortoiseCVS64\  ← cvs.exe なし → 旧版にフォールバック
+HKLM\SOFTWARE\TortoiseCVS\RootDir = dist\TortoiseCVS-x64\  ← 正しいが読まれていなかった
+```
+
+**修正**: `src/Utils/TortoiseRegistry.cpp:52`
+```cpp
+// 修正前
+ourFlag64 = KEY_WOW64_32KEY;
+// 修正後
+ourFlag64 = KEY_WOW64_64KEY;
+```
+
+**原因2**: `dist\TortoiseCVS-x64\` に cvs.exe の依存 DLL が同梱されていなかった。
+
+**修正**: 以下を `dist\TortoiseCVS-x64\` にコピー：
+- `cvsapi.dll`, `cvstools.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`
+- `plink.dll`, `mdnsclient.dll`
+- `triggers/`（5 DLL）, `protocols/`（9 DLL）, `database/`（2）, `mdns/`（2）, `xdiff/`（1）
+
+- [x] `TortoiseAct.exe` / `TortoiseShell.dll` 再ビルド (KEY_WOW64_64KEY 修正込み, 2026-04-24)
+- [x] `dist\TortoiseCVS-x64\cvs.exe` 単独起動確認（日本語 checkout ExitCode: 0）✅
 
 ---
 
@@ -696,21 +723,25 @@ if (FileExists(file.c_str()) && !CVSStatus::IsBinary(file))
 
 ---
 
-### Step 7b: 開発PC テストデータ再作成 (未着手)
+### Step 7b: 開発PC テストデータ再作成 ✅ 完了 (2026-04-24)
 
 #### 作業内容
 
-開発PC の `test-work/cvsnt-cp932-checkout/` は旧 cvs.exe (CP_UTF8) で作成したため CVS/Entries の日本語ファイル名が UTF-8 になっている。新 cvs.exe で checkout し直して CP932 の Entries を再生成する。
+開発PC の旧テストリポジトリ（`test-cvsroot`）はルート直置き構造かつ UTF-8 Entries だったため、正しい構造で作り直した。
 
-#### 手順
+#### 実施内容
 
-```cmd
-cd test-work
-rmdir /s /q cvsnt-cp932-checkout
-cvs -d :local:C:/Ap/TortoiseCVS64/test-cvsroot checkout <モジュール名>
-```
+1. `C:\Ap\TortoiseCVS64\test-cvsroot2` を新規作成（モジュール構造）
+2. `test-cvsroot2/testmodule/` に `test.txt,v` と `新しいテキスト ドキュメント.txt,v` を import
+3. 新 cvs.exe (Build 9605) で checkout → CVS/Entries が CP932 (`90 56 82 B5...`) で正しく生成されることを確認
 
-実行後、`CVS/Entries` の日本語ファイル名部分のバイト列が CP932 (`90 56` = "新") になっていることを確認する。
+#### 確認結果
+
+| 確認項目 | 結果 |
+|---------|------|
+| リポジトリ構造 | `test-cvsroot2/testmodule/` ✓ |
+| 日本語ファイル checkout | CP932 ✓ |
+| CVS/Entries エンコード | CP932 (`90 56...`) ✓ |
 
 ---
 
