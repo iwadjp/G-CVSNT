@@ -809,6 +809,88 @@ else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
 
 ---
 
+### Step 10: Inno Setup インストーラの作成 ✅ 完了 (2026-04-24)
+
+#### 内容
+
+既存の `build/TortoiseCVS.iss` と `build/registry.iss` をベースに、x64 専用の GitHub 配布用インストーラスクリプトを新規作成した。
+
+**作成ファイル**: `build/install64-gh.iss`
+
+#### 設計方針
+
+| 項目 | 内容 |
+|------|------|
+| 対象 | x64 Windows のみ (`ArchitecturesAllowed=x64`) |
+| インストール先 | `{pf64}\TortoiseCVS64` (64bit Program Files) |
+| ソース | `dist\TortoiseCVS-x64\` 以下の全ファイル |
+| レジストリ | `#include "registry.iss"` + 追加エントリ (下記) |
+| 前提条件 | TortoiseGit (TortoiseOverlays) が事前インストール済みであること |
+| 出力先 | `dist\installer\TortoiseCVS-x64-Setup.exe` |
+
+#### 含むファイル
+
+- EXE: `cvs.exe`, `TortoiseAct.exe`, `TortoisePlink.exe`, `TortoiseSetupHelper.exe`
+- DLL: `TortoiseShell64.dll`, `gdiplus.dll`, `cvsapi.dll`, `cvstools.dll`, `mdnsclient.dll`, `plink.dll`, `libcrypto-1_1-x64.dll`, `libssl-1_1-x64.dll`
+- Config: `TortoiseMenus.config`
+- Plugins: `protocols/`(9), `triggers/`(5), `database/`(2), `mdns/`(2), `xdiff/`(1)
+- 除外: `install64.reg`, `PostInst.exe`, `RunTimeInstaller.exe`, `TranslateIss.exe`
+
+#### 追加レジストリエントリ (registry.iss に対する差分)
+
+1. **`HKLM64\SOFTWARE\TortoiseCVS\RootDir`** — 64bit ハイブへの書き込み  
+   (registry.iss は HKLM32 のみ書き込む → `TortoiseRegistry::Init()` の KEY_WOW64_64KEY 修正と対応)
+
+2. **TortoiseOverlays 共有 CLSID 7個の COM 登録** (HKCR64 のみ)  
+   Step 9b で追加した CLSID を ISCC でも登録できるようにした
+
+   | 種別 | CLSID |
+   |------|-------|
+   | Normal      | `{06367927-6A25-4087-97BC-22E4C819D7D3}` |
+   | Modified    | `{DD9F1BBF-004E-4D7E-82BC-509A79101C65}` |
+   | Conflict    | `{F2CBE515-CAFA-465B-9E2C-AB806F3F313F}` |
+   | Added       | `{3B8D1AB7-E0FD-4C0A-B749-0B5FCF8C135B}` |
+   | Ignored     | `{17F29A72-FE71-4A44-B64F-B9F3A60E3D94}` |
+   | ReadOnly    | `{407086D3-BB16-4B50-A3B2-A965C002D7CF}` |
+   | Unversioned | `{488E3E10-3D35-4F85-9C38-143E8D4396C7}` |
+
+3. **`HKLM64\SOFTWARE\TortoiseOverlays\*\CVS`** — 7 CLSID の種別マッピング  
+   (registry.iss が書く旧 5d1cb71x CLSID を上書きして新 CLSID に更新)
+
+4. **Shell Extensions Approved** — 7 新 CLSID を HKLM64 に追加
+
+#### [Code] セクション
+
+TortoiseGit (TortoiseOverlays) が未インストールの場合、警告メッセージを表示してインストールは継続する:
+
+```pascal
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  if not RegKeyExists(HKLM, 'SOFTWARE\TortoiseOverlays') then
+    MsgBox('TortoiseOverlays is not installed. ...(省略)...', mbInformation, MB_OK);
+end;
+```
+
+#### 成果物
+
+- `dist\installer\TortoiseCVS-x64-Setup.exe` — 配布用インストーラ
+
+#### 確認済み (インストール後の動作)
+
+- [x] インストーラ実行 → ファイルが指定ディレクトリに展開される ✅
+- [x] レジストリ登録済み (COM CLSID、ShellIconOverlayIdentifiers、RootDir) ✅
+- [x] アイコンオーバーレイが表示される ✅
+- [x] 右クリックメニューから CVS Checkout が動作する ✅
+- [x] CVS Update が動作する ✅
+
+#### 残課題
+
+- [ ] `registry.iss` に含まれる一部エントリの deprecation 警告修正 (動作には影響なし)
+- [ ] registry.iss 由来の旧 CLSID (5d1cb71x) と新 CLSID ({06367927} 等) の二重登録を整理
+
+---
+
 ## 補足: ビルド環境
 
 | 項目 | 内容 |

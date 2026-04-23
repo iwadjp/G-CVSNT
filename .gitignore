@@ -29,3 +29,11 @@ CVS
 log1
 log2
 /cvsnt/tortoiseCVS/TortoiseCVS/build/vc18x64
+
+# MIDL/MC コンパイラ生成ファイル
+*_h.h
+*_i.c
+*.tlb
+MSG*.bin
+ServiceMsg.h
+ServiceMsg.rc
