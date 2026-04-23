@@ -2886,11 +2886,27 @@ bool TortoiseAct::ParseConflicts(const DirectoryGroup& group,
             ++i;
          file += line.substr(2, i-2);
          FindAndReplace<std::string>(file, "/", "\\");
-         // We only process non-binary files that need a merge
-         if (CVSStatus::GetFileStatus(file) == CVSStatus::STATUS_CONFLICT)
+         // Check for conflict by looking for conflict markers in the file.
+         // GetFileStatus()==STATUS_CONFLICT requires ts_conflict timestamp to match
+         // file mtime, which can fail with CVSNT 3.5.24. Scanning for "<<<<<<< "
+         // is more reliable and works for all text-format conflicts.
+         if (FileExists(file.c_str()) && !CVSStatus::IsBinary(file))
          {
-            // Do not edit conflict file if the file is binary
-            if (!CVSStatus::IsBinary(file))
+            bool hasConflictMarker = false;
+            std::ifstream ifs(file.c_str());
+            if (ifs.is_open())
+            {
+               std::string markerLine;
+               while (std::getline(ifs, markerLine))
+               {
+                  if (markerLine.substr(0, 8) == "<<<<<<< ")
+                  {
+                     hasConflictMarker = true;
+                     break;
+                  }
+               }
+            }
+            if (hasConflictMarker)
                conflictFiles.push_back(file);
          }
       }

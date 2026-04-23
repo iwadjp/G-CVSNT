@@ -163,7 +163,22 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppvOut)
         whichClass = TORTOISE_OLE_DELETED;
     else if (IsEqualIID(rclsid, CLSID_TortoiseCVS8))
         whichClass = TORTOISE_OLE_LOCKED;
-   
+    // TortoiseOverlays.dll shared overlay CLSIDs (HKLM\SOFTWARE\TortoiseOverlays\*\CVS)
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Normal))
+        whichClass = TORTOISE_OLE_INCVS;
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Modified))
+        whichClass = TORTOISE_OLE_CHANGED;
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Conflict))
+        whichClass = TORTOISE_OLE_CONFLICT;
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Added))
+        whichClass = TORTOISE_OLE_ADDED;
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Ignored))
+        whichClass = TORTOISE_OLE_IGNORED;
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_ReadOnly))
+        whichClass = TORTOISE_OLE_INCVSREADONLY;
+    else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
+        whichClass = TORTOISE_OLE_NOTINCVS;
+
     if (whichClass != TORTOISE_OLE_INVALID)
     {
         CShellExtClassFactory *pcf = new CShellExtClassFactory(whichClass);

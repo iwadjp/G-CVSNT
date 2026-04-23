@@ -561,7 +561,7 @@ TortoiseCVS の update 実行時にどの cvs.exe が呼ばれているかを確
 
 ---
 
-### Step 9: ConflictファイルがOutputに表示されない問題 🔍 調査中 (2026-04-23)
+### Step 9: ConflictファイルがOutputに表示されない問題 ✅ 修正済み (2026-04-23)
 
 #### 症状
 
@@ -637,27 +637,52 @@ FindAndReplace(file, "/", "\\");
 `GetType("C filename")` → `TTConflict` (赤色) → 表示はされるはず。
 Tortoise Tip が "C " を検知している事実から stdout には存在確認済み。
 
-#### 次回の調査箇所
+#### 修正内容
 
-1. **`CVSGlue/CvsEntries.cpp` の `unmodified()` 関数** (line 455)
-   - CVSNT 3.5.24 の `ts_conflict` 形式と TortoiseCVS の比較形式が一致しているか確認
-   - `asctime()` vs `asctime_r()` の動作差異 (MSVC vs mingw など)
+**ファイル**: `src/TortoiseAct/TortoiseAct.cpp` — `ParseConflicts()` (line 2890 付近)
 
-2. **`src/update.cpp` の `Register()` 呼び出し** (line 2432)
-   - `ts` = "Result of merge", `cp` = `time_stamp(file, 0)` が確実に書き込まれているか
-   - `Register()` 後に何らかの理由でファイルが触られる可能性
+```cpp
+// 修正前
+if (CVSStatus::GetFileStatus(file) == CVSStatus::STATUS_CONFLICT)
+{
+    if (!CVSStatus::IsBinary(file))
+        conflictFiles.push_back(file);
+}
 
-3. **実際の CVS/Entries 内容を確認** (業務PC)
-   - コンフリクト発生後の CVS/Entries のタイムスタンプフィールドを直接確認
-   - `Result of merge+Thu Apr 23 12:34:56 2026` 形式になっているか
+// 修正後
+if (FileExists(file.c_str()) && !CVSStatus::IsBinary(file))
+{
+    bool hasConflictMarker = false;
+    std::ifstream ifs(file.c_str());
+    if (ifs.is_open())
+    {
+        std::string markerLine;
+        while (std::getline(ifs, markerLine))
+        {
+            if (markerLine.substr(0, 8) == "<<<<<<< ")
+            {
+                hasConflictMarker = true;
+                break;
+            }
+        }
+    }
+    if (hasConflictMarker)
+        conflictFiles.push_back(file);
+}
+```
 
-4. **修正方針案**: `GetFileStatus == STATUS_CONFLICT` チェックを緩和
-   - ファイル存在チェックのみに変更し、`ConflictParser::ParseFile` で conflict marker 確認
+`STATUS_CONFLICT` 判定 (CVS/Entries の ts_conflict タイムスタンプ ↔ ファイルの mtime の asctime 文字列比較) は CVSNT 3.5.24 との組み合わせで失敗する。conflict marker (`<<<<<<< `) の有無を直接確認する方式に置き換え。
 
-#### 修正予定ファイル
+#### ビルド・配布
 
-- `src/TortoiseAct/TortoiseAct.cpp` — `ParseConflicts()` の STATUS_CONFLICT チェック修正
-- 再ビルド: `TortoiseAct.exe` のみ (TortoiseShell.dll は不要)
+- [x] `TortoiseAct.exe` 再ビルド (Release/x64, エラーなし) ✅
+- [x] `dist\TortoiseCVS-x64\TortoiseAct.exe` 更新 (2026-04-23 18:15) ✅
+
+#### 動作確認 (業務PC で要確認)
+
+- [ ] Output ダイアログに "C filename" が表示される
+- [ ] コンフリクトファイル一覧ダイアログが出る
+- [ ] 正常ファイル (M, U など) への誤検出がない
 
 ---
 
