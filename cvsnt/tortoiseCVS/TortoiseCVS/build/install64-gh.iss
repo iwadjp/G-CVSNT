@@ -136,7 +136,6 @@ Root: HKCR64; Subkey: CLSID\{{488E3E10-3D35-4F85-9C38-143E8D4396C7}\InProcServer
 Root: HKCR64; Subkey: CLSID\{{488E3E10-3D35-4F85-9C38-143E8D4396C7}\InProcServer32;        ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: IsWin64
 
 ; --- TortoiseOverlays type-to-CLSID mapping (x64) ---
-; Overwrites values written by registry.iss (which used old 5d1cb71x CLSIDs).
 Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\Normal;      ValueType: string; ValueName: CVS; ValueData: {{06367927-6A25-4087-97BC-22E4C819D7D3}; Check: IsWin64
 Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\Modified;    ValueType: string; ValueName: CVS; ValueData: {{DD9F1BBF-004E-4D7E-82BC-509A79101C65}; Check: IsWin64
 Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\Conflict;    ValueType: string; ValueName: CVS; ValueData: {{F2CBE515-CAFA-465B-9E2C-AB806F3F313F}; Check: IsWin64
@@ -144,6 +143,7 @@ Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\Added;       ValueType: string; 
 Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\Ignored;     ValueType: string; ValueName: CVS; ValueData: {{17F29A72-FE71-4A44-B64F-B9F3A60E3D94}; Check: IsWin64
 Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\ReadOnly;    ValueType: string; ValueName: CVS; ValueData: {{407086D3-BB16-4B50-A3B2-A965C002D7CF}; Check: IsWin64
 Root: HKLM64; Subkey: SOFTWARE\TortoiseOverlays\Unversioned; ValueType: string; ValueName: CVS; ValueData: {{488E3E10-3D35-4F85-9C38-143E8D4396C7}; Check: IsWin64
+; Deleted/Locked CVS values (old CLSIDs) are removed in CurStepChanged below
 
 ; --- Shell Extensions Approved for TortoiseOverlays shared CLSIDs ---
 Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved; ValueType: string; ValueName: {{06367927-6A25-4087-97BC-22E4C819D7D3}; ValueData: TortoiseCVS; Flags: uninsdeletevalue; Check: IsWin64
@@ -208,6 +208,14 @@ begin
   Result := RegKeyExists(HKLM,
     'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\' +
     'ShellIconOverlayIdentifiers\  Tortoise1Normal');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then begin
+    RegDeleteValue(HKLM64, 'SOFTWARE\TortoiseOverlays\Deleted', 'CVS');
+    RegDeleteValue(HKLM64, 'SOFTWARE\TortoiseOverlays\Locked', 'CVS');
+  end;
 end;
 
 function InitializeSetup(): Boolean;
