@@ -36,8 +36,7 @@
 | `co.exe` | EXE | RCS チェックアウト |
 | `uninsthlp.exe` | EXE | アンインストールヘルパー |
 
-> **注意**: メインクライアント `cvs.exe` が `Releasex64/` に存在しない。  
-> `cvsnt.vcxproj` の出力名は `cvs.exe` になっているが、ビルド未完了の可能性あり。要確認。
+> **備考**: `cvs.exe` は `cvsnt.vcxproj` に `<TargetName>cvs</TargetName>` を追加してビルド済み。Step 1 で確認完了。
 
 #### プロトコルプラグイン (`Releasex64/protocols/`)
 
@@ -91,7 +90,7 @@
 
 | ファイル | 説明 |
 |---------|------|
-| `cvscontrol.exe` | CVSNT コントロールパネル GUI |
+| `cvscontrol.exe` | CVSNT サービスデーモン（コントロールパネル GUI は `cvsntcpl.dll`） |
 | `genbuild.exe` | ビルドメタデータ生成 |
 | `setuid.dll` | UID 設定ライブラリ |
 
@@ -133,15 +132,15 @@
 
 #### COM オブジェクト登録 (HKEY_CLASSES_ROOT)
 
-| CLSID | 用途 | DLL |
-|-------|------|-----|
-| `{5d1cb710-...}` | Normal (アイコンオーバーレイ) | `TrtseShl64.dll` |
-| `{5d1cb711-...}` | Modified | `TrtseShl64.dll` |
-| `{5d1cb712-...}` | Conflict | `TrtseShl64.dll` |
-| `{5d1cb713-...}` | Ignored | `TrtseShl64.dll` |
-| `{5d1cb714-...}` | ReadOnly | `TrtseShl64.dll` |
-| `{5d1cb715-...}` | Added | `TrtseShl64.dll` |
-| `{5d1cb716-...}` | Unversioned | `TrtseShl64.dll` |
+| CLSID | 用途 (ShellExt.cpp 定数) | DLL |
+|-------|------------------------|-----|
+| `{5d1cb710-...}` | InCVS (Normal) | `TortoiseShell64.dll` |
+| `{5d1cb711-...}` | Changed (Modified) | `TortoiseShell64.dll` |
+| `{5d1cb712-...}` | NotInCVS (Unversioned) | `TortoiseShell64.dll` |
+| `{5d1cb713-...}` | Conflict | `TortoiseShell64.dll` |
+| `{5d1cb714-...}` | InCVSReadOnly (ReadOnly) | `TortoiseShell64.dll` |
+| `{5d1cb715-...}` | Ignored | `TortoiseShell64.dll` |
+| `{5d1cb716-...}` | Added | `TortoiseShell64.dll` |
 
 各エントリの `InProcServer32` に DLL パスと `ThreadingModel=Apartment` を設定。
 
@@ -172,7 +171,7 @@ TortoiseCVS0 ~ TortoiseCVS6  →  上記 CLSID を対応付け
 
 ```
 HKCR\CVS  →  "URL:CVS Protocol"
-HKCR\CVS\shell\open\command  →  TortoiseAct.exe -u "%1"
+HKCR\CVS\shell\open\command  →  TortoiseAct.exe cvsurl -u "%1"
 ```
 
 #### TortoiseCVS インストール情報
@@ -201,7 +200,7 @@ Inno Setup スクリプト `build/registry.iss` では:
 
 ```
 CVSNT\
-├── cvs.exe                    ← メインクライアント (要ビルド確認)
+├── cvs.exe                    ← メインクライアント ✅ (Step 1 で確認済み)
 ├── cvsagent.exe
 ├── cvsdiag.exe
 ├── cvslock.exe
@@ -265,7 +264,7 @@ TortoiseCVS\
 ├── TortoiseAct.exe
 ├── TortoisePlink.exe
 ├── TortoiseShell.dll          ← 32bit シェル拡張
-├── TortoiseShell64.dll        ← 64bit シェル拡張 (要確認: build/vc18x64 の出力を確認)
+├── TortoiseShell64.dll        ← 64bit シェル拡張 ✅ (Step 2 で確認済み)
 ├── PostInst.exe
 ├── RunTimeInstaller.exe
 ├── TortoiseSetupHelper.exe
@@ -642,7 +641,7 @@ PerformUpdateMenu()
           → この条件が false の場合、conflictFiles に追加されない
 ```
 
-#### 根本原因候補 (未確定)
+#### 修正前の調査メモ
 
 **候補A**: `CVSStatus::GetFileStatus(file)` が `STATUS_CONFLICT` を返さない
 
@@ -720,8 +719,6 @@ if (FileExists(file.c_str()) && !CVSStatus::IsBinary(file))
 - [x] Tortoise Tip 正常表示 ✅（開発環境確認済み）
 - [ ] コンフリクトファイル一覧ダイアログが出る（業務PC未確認）
 - [ ] 正常ファイル (M, U など) への誤検出がない（業務PC未確認）
-
----
 
 ---
 
@@ -806,6 +803,8 @@ else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
 
 #### 動作確認 (業務PC で要確認)
 
+> 手動 reg 環境での確認。インストーラ経由での動作確認は Step 10 で完了済み。
+
 - [ ] エクスプローラーで CVS 管理下フォルダにアイコンオーバーレイが表示される
 - [ ] Modified / Conflict / Added / Normal 等の各状態が正しいアイコンで表示される
 
@@ -817,17 +816,17 @@ else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
 
 既存の `build/TortoiseCVS.iss` と `build/registry.iss` をベースに、x64 専用の GitHub 配布用インストーラスクリプトを新規作成した。
 
-**作成ファイル**: `build/install64-gh.iss`
+**作成ファイル**: `cvsnt/tortoiseCVS/TortoiseCVS/build/install64-gh.iss`
 
 #### 設計方針
 
 | 項目 | 内容 |
 |------|------|
-| 対象 | x64 Windows のみ (`ArchitecturesAllowed=x64`) |
+| 対象 | x64 Windows のみ (`ArchitecturesAllowed=x64compatible`) |
 | インストール先 | `{commonpf64}\TortoiseCVS64` (64bit Program Files) |
 | ソース | `dist\TortoiseCVS-x64\` 以下の全ファイル |
 | レジストリ | `#include "registry.iss"` + 追加エントリ (下記) |
-| 前提条件 | TortoiseGit (TortoiseOverlays) が事前インストール済みであること |
+| 前提条件 | TortoiseGit なし環境は TortoiseOverlays.dll を同梱して対応 |
 | 出力先 | `dist\installer\TortoiseCVS-x64-Setup.exe` |
 
 #### 含むファイル
@@ -863,14 +862,27 @@ else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
 
 #### [Code] セクション
 
-TortoiseGit (TortoiseOverlays) が未インストールの場合、警告メッセージを表示してインストールは継続する:
+TortoiseGit/SVN の有無を検出し、ない場合のみ DLL・CLSID・ShellIconOverlays を登録する:
 
 ```pascal
+function TortoiseOverlaysInstalled(): Boolean;
+begin
+  Result := RegKeyExists(HKLM,
+    'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\' +
+    'ShellIconOverlayIdentifiers\  Tortoise1Normal');
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then begin
+    RegDeleteValue(HKLM64, 'SOFTWARE\TortoiseOverlays\Deleted', 'CVS');
+    RegDeleteValue(HKLM64, 'SOFTWARE\TortoiseOverlays\Locked', 'CVS');
+  end;
+end;
+
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-  if not RegKeyExists(HKLM, 'SOFTWARE\TortoiseOverlays') then
-    MsgBox('TortoiseOverlays is not installed. ...(省略)...', mbInformation, MB_OK);
 end;
 ```
 
@@ -891,7 +903,7 @@ end;
 - [ ] コード署名未対応（`unins000.exe` が「不明な発行元」として表示される）
 - [ ] アンインストール後に OS 再起動が必要（シェル拡張 DLL がロックされるため）
 - [x] `.iss` スクリプトの deprecation 警告修正 ✅ Step 13 で完了
-- [x] CLSID 不要エントリ整理（旧 5d1cb71x COM 登録・旧 TortoiseOverlays マッピング・Deleted/Locked 旧 CLSID）✅ Step 14 で完了
+- [x] 旧CLSID/新CLSID 併存状態の整理（旧 5d1cb71x COM 登録・旧 TortoiseOverlays マッピング・Deleted/Locked 旧 CLSID 削除）✅ Step 14 で完了
 
 ---
 
@@ -908,7 +920,7 @@ end;
 
 #### 修正内容
 
-**1. `src/Icons/WindowsXP.manifest` — Win10/11 compatibility GUID 追加**
+**1. `cvsnt/tortoiseCVS/TortoiseCVS/src/Icons/WindowsXP.manifest` — Win10/11 compatibility GUID 追加**
 
 ```xml
 <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
@@ -1021,6 +1033,7 @@ cmake 再生成時、`VS_USER_PROPS` により各 vcxproj の `<ImportGroup Labe
 
 - [x] `cvsapi.dll` 再ビルド (devenv.com, Build 9617) ✅
 - [x] `dist\TortoiseCVS-x64\cvsapi.dll` 更新 ✅
+- [ ] `installer.dll` 再ビルド ❌ 保留（→ 残課題参照）
 - [x] `dist\TortoiseCVS-x64\TortoiseAct.exe` manifest 更新 ✅
 - [x] `dist\TortoiseCVS-x64\TortoiseShell64.dll` manifest 更新 ✅
 - [x] `TortoiseAct.vcxproj` / `TortoiseShell.vcxproj` に `AdditionalManifestFiles` 追加 ✅
@@ -1033,11 +1046,11 @@ cmake 再生成時、`VS_USER_PROPS` により各 vcxproj の `<ImportGroup Labe
 
 #### 残課題
 
-- [ ] `installer.dll` 再ビルド（VS2026 が `isComplete: false` 状態のため保留。VS 修復後に `windows-NT/installer/installer.vcxproj` を rebuild）
+- [ ] `installer.dll` 再ビルド（VS2026 が `isComplete: false` 状態のため保留。VS 修復後に `cvsnt/cvsnt-2.5.05.3744/windows-NT/installer/installer.vcxproj` を rebuild）
 
 ---
 
-### Step 12: TortoiseOverlays.dll 梱包対応 ✅ 完了 (2026-04-25)
+### Step 12: TortoiseOverlays.dll 梱包対応 ✅ 実装完了（TortoiseGit なし環境で要実機確認）(2026-04-25)
 
 #### 背景
 
@@ -1049,7 +1062,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
 #### 修正内容
 
-**`build/install64-gh.iss`**
+**`cvsnt/tortoiseCVS/TortoiseCVS/build/install64-gh.iss`**
 
 1. **`[Files]` セクション** — TortoiseOverlays 関連ファイルを追加（`Check: not TortoiseOverlaysInstalled` 条件付き）
 
@@ -1063,13 +1076,15 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
    | CLSID | 種別 | ShellIconOverlayIdentifiers 名 |
    |-------|------|-------------------------------|
-   | `{C5994560-53D9-...}` | Normal    | `  Tortoise1Normal` |
-   | `{C5994561-53D9-...}` | Modified  | `  Tortoise2Modified` |
-   | `{C5994562-53D9-...}` | Conflict  | `  Tortoise3Conflict` |
-   | `{C5994563-53D9-...}` | Locked    | `  Tortoise4Locked` |
-   | `{C5994564-53D9-...}` | ReadOnly  | `  Tortoise5ReadOnly` |
-   | `{C5994565-53D9-...}` | Deleted   | `  Tortoise6Deleted` |
-   | `{C5994566-53D9-...}` | Added     | `  Tortoise7Added` |
+   | `{C5994560-53D9-...}` | Normal      | `  Tortoise1Normal` |
+   | `{C5994561-53D9-...}` | Modified    | `  Tortoise2Modified` |
+   | `{C5994562-53D9-...}` | Conflict    | `  Tortoise3Conflict` |
+   | `{C5994563-53D9-...}` | Locked      | `  Tortoise4Locked` |
+   | `{C5994564-53D9-...}` | ReadOnly    | `  Tortoise5ReadOnly` |
+   | `{C5994565-53D9-...}` | Deleted     | `  Tortoise6Deleted` |
+   | `{C5994566-53D9-...}` | Added       | `  Tortoise7Added` |
+   | `{C5994567-53D9-...}` | Ignored     | `  Tortoise8Ignored` |
+   | `{C5994568-53D9-...}` | Unversioned | `  Tortoise9Unversioned` |
 
    先頭スペース2個の命名で OneDrive / Google Drive より高優先度スロットを確保。
 
@@ -1114,7 +1129,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
 `ISCC.exe` が報告していた 3 件の deprecation 警告を修正。
 
-**ファイル**: `build/install64-gh.iss`
+**ファイル**: `cvsnt/tortoiseCVS/TortoiseCVS/build/install64-gh.iss`
 
 | 修正前 | 修正後 | 理由 |
 |--------|--------|------|
@@ -1133,7 +1148,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
 ---
 
-### Step 14: CLSID 不要エントリクリーンアップ ✅ 完了 (2026-04-25)
+### Step 14: 旧CLSID/新CLSID 併存状態の整理 ✅ 完了 (2026-04-25)
 
 #### 背景
 
@@ -1153,7 +1168,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 | 旧 TortoiseOverlays マッピング (`HKLM\SOFTWARE\TortoiseOverlays\*\CVS`) | 旧 5d1cb71x CLSID 7エントリ |
 | `{5d1cb711-718}` Shell Extensions Approved | HKLM32/64 各 7エントリ |
 
-**`build/install64-gh.iss`** — `CurStepChanged(ssInstall)` を追加
+**`cvsnt/tortoiseCVS/TortoiseCVS/build/install64-gh.iss`** — `CurStepChanged(ssInstall)` を追加
 
 ```pascal
 procedure CurStepChanged(CurStep: TSetupStep);
