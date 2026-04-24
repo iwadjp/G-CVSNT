@@ -68,12 +68,15 @@ static void GetOsVersion(LPTSTR os, LPTSTR servicepack)
 	ZeroMemory(os,sizeof(os));
 	ZeroMemory(servicepack,sizeof(servicepack));
 
-	OSVERSIONINFOEX vi = {sizeof(OSVERSIONINFOEX)};
-	if(!GetVersionEx((OSVERSIONINFO*)&vi))
- 	{
- 		_tcscpy(os,_T("NT4 or older.  Not supported."));
-  		return; // NT4 or older.  Not supported.
- 	}
+	/* Use RtlGetVersion to get the real OS version regardless of manifest or compatibility shims */
+	typedef LONG (WINAPI *RtlGetVersionPtr)(OSVERSIONINFOEXW*);
+	RtlGetVersionPtr fnRtlGetVersion = (RtlGetVersionPtr)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion");
+	OSVERSIONINFOEXW vi = {sizeof(OSVERSIONINFOEXW)};
+	if (!fnRtlGetVersion || fnRtlGetVersion(&vi) != 0)
+	{
+		_tcscpy(os,_T("NT4 or older.  Not supported."));
+		return;
+	}
 
 	SYSTEM_INFO si = {0};
 	PGNSI pGNSI = (PGNSI)GetProcAddress(GetModuleHandle(_T("kernel32.dll")), "GetNativeSystemInfo");
@@ -243,7 +246,11 @@ static void GetOsVersion(LPTSTR os, LPTSTR servicepack)
          }
       }
 
+#ifdef UNICODE
 	  lstrcpy(servicepack, vi.szCSDVersion);
+#else
+	  WideCharToMultiByte(CP_ACP, 0, vi.szCSDVersion, -1, servicepack, 128, NULL, NULL);
+#endif
    }
 }
 

@@ -55,11 +55,14 @@ bool GetOsVersion(char *os, char *servicepack, int& major, int& minor)
 	ZeroMemory(os,sizeof(os));
 	ZeroMemory(servicepack,sizeof(servicepack));
 
-	OSVERSIONINFOEXA vi = {sizeof(OSVERSIONINFOEXA)};
-	if(!GetVersionExA((OSVERSIONINFOA*)&vi))
+	/* Use RtlGetVersion to get the real OS version regardless of manifest or compatibility shims */
+	typedef LONG (WINAPI *RtlGetVersionPtr)(OSVERSIONINFOEXW*);
+	RtlGetVersionPtr fnRtlGetVersion = (RtlGetVersionPtr)GetProcAddress(GetModuleHandleA("ntdll.dll"), "RtlGetVersion");
+	OSVERSIONINFOEXW vi = {sizeof(OSVERSIONINFOEXW)};
+	if (!fnRtlGetVersion || fnRtlGetVersion(&vi) != 0)
 	{
 		strcpy(os,"NT4 or older.  Not supported.");
-		return false; // NT4 or older.  Not supported.
+		return false;
 	}
 
 	SYSTEM_INFO si = {0};
@@ -236,7 +239,7 @@ bool GetOsVersion(char *os, char *servicepack, int& major, int& minor)
 		}
 	}
 
-	strcpy(servicepack,vi.szCSDVersion);
+	WideCharToMultiByte(CP_ACP, 0, vi.szCSDVersion, -1, servicepack, 128, NULL, NULL);
 
 	return true;
 }

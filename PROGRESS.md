@@ -895,6 +895,93 @@ end;
 
 ---
 
+### Step 11: GetVersionEx Win11 互換性修正 ✅ 完了 (2026-04-24)
+
+#### 背景
+
+`GetVersionEx()` は Windows 8.1 以降で非推奨。manifest に `<compatibility>` セクションがないと Win10/11 でも **6.2 (Win8)** を偽装して返す。
+
+調査結果:
+- プロジェクト全体で 25 箇所の `GetVersionEx` 呼び出しを確認
+- `OsVersion.h` のインライン関数群 (`WindowsVersionIsVistaOrHigher` 等) は major≥6 で判定するため、6.2 偽装値でも**偶然正しく動作**していた
+- 機能への実害はないが、OS 名称表示が "unknown OS" になる箇所と、将来の Win10 固有機能追加に向けた根本修正が必要
+
+#### 修正内容
+
+**1. `src/Icons/WindowsXP.manifest` — Win10/11 compatibility GUID 追加**
+
+```xml
+<compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
+    <application>
+        <!-- Windows 10 / 11 -->
+        <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
+        <!-- Windows 8.1 -->
+        <supportedOS Id="{1f676c76-80e1-4239-95bb-83d0f6d0da78}"/>
+        <!-- Windows 8 -->
+        <supportedOS Id="{4a2f28e3-53b9-4441-ba9c-d69d4a4a6e38}"/>
+    </application>
+</compatibility>
+```
+
+**2. `cvsapi/lib/GetOsVersion.cpp` — `GetVersionExA` → `RtlGetVersion()` に置き換え**
+
+```c
+// 修正前
+OSVERSIONINFOEXA vi = {sizeof(OSVERSIONINFOEXA)};
+if(!GetVersionExA((OSVERSIONINFOA*)&vi)) { ... }
+
+// 修正後
+typedef LONG (WINAPI *RtlGetVersionPtr)(OSVERSIONINFOEXW*);
+RtlGetVersionPtr fnRtlGetVersion = (RtlGetVersionPtr)GetProcAddress(
+    GetModuleHandleA("ntdll.dll"), "RtlGetVersion");
+OSVERSIONINFOEXW vi = {sizeof(OSVERSIONINFOEXW)};
+if (!fnRtlGetVersion || fnRtlGetVersion(&vi) != 0) { ... }
+// servicepack: strcpy → WideCharToMultiByte(CP_ACP, ...)
+```
+
+`RtlGetVersion()` は manifest に依存せず常に実バージョン (10.0.19045) を返す。
+
+**3. `windows-NT/installer/installer.cpp` — 同様に `RtlGetVersion()` に置き換え**
+
+servicepack コピーを `#ifdef UNICODE` で分岐（Unicode ビルド: lstrcpy 直接、ANSI: WideCharToMultiByte）。
+
+**4. manifest をバイナリに埋め込み**
+
+manifest が build ツールチェーンに自動包含されていなかったため、mt.exe / Win32 UpdateResource API で直接埋め込み:
+
+| バイナリ | manifest埋め込み方法 | compatibilityセクション |
+|---------|---------------------|----------------------|
+| `TortoiseAct.exe` | Win32 UpdateResource API (mt.exe が `c101008d` で失敗するため) | ✅ |
+| `TortoiseShell64.dll` | mt.exe `-inputresource -manifest -outputresource` | ✅ |
+
+**5. `TortoiseAct.vcxproj` / `TortoiseShell.vcxproj` — `AdditionalManifestFiles` を追加**
+
+次回ビルド時に自動で manifest が埋め込まれるよう、両 vcxproj に全構成共通で追記:
+
+```xml
+<ItemDefinitionGroup>
+  <Manifest>
+    <AdditionalManifestFiles>..\..\..\src\Icons\WindowsXP.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    <EmbedManifest>true</EmbedManifest>
+  </Manifest>
+</ItemDefinitionGroup>
+```
+
+#### ビルド・配布
+
+- [x] `cvsapi.dll` 再ビルド (devenv.com, Build 9617) ✅
+- [x] `dist\TortoiseCVS-x64\cvsapi.dll` 更新 ✅
+- [x] `dist\TortoiseCVS-x64\TortoiseAct.exe` manifest 更新 ✅
+- [x] `dist\TortoiseCVS-x64\TortoiseShell64.dll` manifest 更新 ✅
+- [x] `TortoiseAct.vcxproj` / `TortoiseShell.vcxproj` に `AdditionalManifestFiles` 追加 ✅
+
+#### 残課題
+
+- [ ] `installer.dll` 再ビルド（VS2026 が `isComplete: false` 状態のため保留。VS 修復後に `windows-NT/installer/installer.vcxproj` を rebuild）
+- [ ] 次回 cmake 再生成時に vcxproj の手動変更が上書きされる → CMakeLists.txt に `set_target_properties(... VS_USER_PROPS ...)` 等で恒久化することを推奨
+
+---
+
 ## 補足: ビルド環境
 
 | 項目 | 内容 |
