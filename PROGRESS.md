@@ -1,6 +1,6 @@
 # G-CVSNT ビルド進捗メモ
 
-**作業日**: 2026-04-13 / 更新: 2026-04-14  
+**作業日**: 2026-04-13 / 更新: 2026-04-25  
 **対象リポジトリ**: G-CVSNT (Gaijin/Gamedev 向け CVSNT 改良版)  
 **ソースバージョン**: cvsnt-2.5.05.3744
 
@@ -824,7 +824,7 @@ else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
 | 項目 | 内容 |
 |------|------|
 | 対象 | x64 Windows のみ (`ArchitecturesAllowed=x64`) |
-| インストール先 | `{pf64}\TortoiseCVS64` (64bit Program Files) |
+| インストール先 | `{commonpf64}\TortoiseCVS64` (64bit Program Files) |
 | ソース | `dist\TortoiseCVS-x64\` 以下の全ファイル |
 | レジストリ | `#include "registry.iss"` + 追加エントリ (下記) |
 | 前提条件 | TortoiseGit (TortoiseOverlays) が事前インストール済みであること |
@@ -890,8 +890,8 @@ end;
 
 - [ ] コード署名未対応（`unins000.exe` が「不明な発行元」として表示される）
 - [ ] アンインストール後に OS 再起動が必要（シェル拡張 DLL がロックされるため）
-- [ ] `.iss` スクリプトの deprecation 警告修正（`registry.iss` の一部エントリ、動作には影響なし）
-- [ ] CLSID 未登録の調査（registry.iss 由来の旧 CLSID (5d1cb71x) と新 CLSID ({06367927} 等) の二重登録整理）
+- [x] `.iss` スクリプトの deprecation 警告修正 ✅ Step 13 で完了
+- [x] CLSID 不要エントリ整理（旧 5d1cb71x COM 登録・旧 TortoiseOverlays マッピング・Deleted/Locked 旧 CLSID）✅ Step 14 で完了
 
 ---
 
@@ -1093,18 +1093,94 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
 #### ビルド・動作確認
 
-- [x] `ISCC.exe install64-gh.iss` でビルド成功（警告3件は既存の deprecation、エラーなし）
+- [x] `ISCC.exe install64-gh.iss` でビルド成功（警告 0 件、エラー 0 件）
 - [x] `dist\installer\TortoiseCVS-x64-Setup.exe` 生成 (8.0 MB)
 - [x] インストール実行 → TortoiseGit あり環境では DLL コピーがスキップされる ✅
 - [x] `ShellIconOverlayIdentifiers\  Tortoise1Normal` (TortoiseGit のもの) が維持されている ✅
 - [x] `HKLM\SOFTWARE\TortoiseOverlays\*\CVS` マッピング 7個が正しく登録されている ✅
-- [x] TortoiseShell64.dll が `{pf64}\TortoiseCVS64\` に配置されている ✅
+- [x] TortoiseShell64.dll が `{commonpf64}\TortoiseCVS64\` に配置されている ✅
 - [ ] TortoiseGit なし環境での動作確認（業務PC で要確認）
 
 #### ビルド中の修正点
 
 - `[Code]` セクションの `RegKeyExists` の第1引数を `HKLM64`（`[Registry]` 専用記法）→ `HKLM` に修正
 - ヘッダーコメントを "Requires TortoiseGit" → "TortoiseOverlays.dll is bundled" に更新
+
+---
+
+### Step 13: `.iss` deprecation 警告修正 ✅ 完了 (2026-04-25)
+
+#### 内容
+
+`ISCC.exe` が報告していた 3 件の deprecation 警告を修正。
+
+**ファイル**: `build/install64-gh.iss`
+
+| 修正前 | 修正後 | 理由 |
+|--------|--------|------|
+| `ArchitecturesAllowed=x64` | `ArchitecturesAllowed=x64compatible` | Inno Setup 6.3+ 新定数 |
+| `ArchitecturesInstallIn64BitMode=x64` | `ArchitecturesInstallIn64BitMode=x64compatible` | 同上 |
+| `DefaultDirName={pf64}\TortoiseCVS64` | `DefaultDirName={commonpf64}\TortoiseCVS64` | `{pf64}` 廃止 |
+| `MinVersion=6.1` | `MinVersion=6.1sp1` | SP1 未満サポート終了宣言 |
+
+#### 確認
+
+- [x] `ISCC.exe install64-gh.iss` で警告 0 件、エラー 0 件 ✅
+
+#### git commit
+
+`48cef81` — `fix: install64-gh.iss の deprecation 警告を修正`
+
+---
+
+### Step 14: CLSID 不要エントリクリーンアップ ✅ 完了 (2026-04-25)
+
+#### 背景
+
+アイコン動作調査の結果、以下のレジストリエントリが不要（デッドパス）であることが確認された。
+
+1. **`{5d1cb711-718}` COM 登録** — TortoiseCVS 独自オーバーレイ CLSID だが `ShellIconOverlayIdentifiers\TortoiseCVS0〜6` は 15スロット制限で永久に読み込まれないため無意味
+2. **旧 TortoiseOverlays マッピング** — `registry.iss` が旧 CLSID (`{5d1cb71x}`) を `HKLM\SOFTWARE\TortoiseOverlays\*\CVS` に書いていたが、`install64-gh.iss` で正しい CLSID に上書きされるため registry.iss 側は dead
+3. **Deleted/Locked 旧 CLSID** — `HKLM\SOFTWARE\TortoiseOverlays\Deleted\CVS` と `Locked\CVS` に旧 CLSID (`{5d1cb717-718}`) が残存していた
+
+#### 修正内容
+
+**`build/registry.iss`** — 約 136 行削除（220 行 → 75 行）
+
+| 削除カテゴリ | 内容 |
+|------------|------|
+| `{5d1cb711-718}` HKCR32/64 COM 登録 | 7 CLSID × 4行 × 2 |
+| 旧 TortoiseOverlays マッピング (`HKLM\SOFTWARE\TortoiseOverlays\*\CVS`) | 旧 5d1cb71x CLSID 7エントリ |
+| `{5d1cb711-718}` Shell Extensions Approved | HKLM32/64 各 7エントリ |
+
+**`build/install64-gh.iss`** — `CurStepChanged(ssInstall)` を追加
+
+```pascal
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssInstall then begin
+    RegDeleteValue(HKLM64, 'SOFTWARE\TortoiseOverlays\Deleted', 'CVS');
+    RegDeleteValue(HKLM64, 'SOFTWARE\TortoiseOverlays\Locked', 'CVS');
+  end;
+end;
+```
+
+インストール時に Deleted/Locked の旧 CLSID 値をランタイム削除する。`Flags: deletevalue` は不安定なため Code セクションで対処。
+
+#### 動作確認
+
+- [x] `ISCC.exe install64-gh.iss` で警告 0 件、エラー 0 件 ✅
+- [x] インストール後 `HKLM\SOFTWARE\TortoiseOverlays\Deleted\CVS` → 値なし ✅
+- [x] インストール後 `HKLM\SOFTWARE\TortoiseOverlays\Locked\CVS` → 値なし ✅
+- [x] コンテキストメニュー正常動作（`{5d1cb710}` → `TortoiseShell64.dll` は維持）✅
+
+#### 備考
+
+旧 `{5d1cb711-716}` の HKCR COM エントリは現環境のレジストリに手動 reg インポートで残存しているが、新インストーラは追加しないため新規インストール環境には存在しない。
+
+#### git commit
+
+`13895b8` — `cleanup: 不要レジストリエントリを削除`
 
 ---
 
