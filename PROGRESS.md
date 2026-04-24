@@ -144,6 +144,8 @@
 
 各エントリの `InProcServer32` に DLL パスと `ThreadingModel=Apartment` を設定。
 
+※ `install64.reg` および Inno Setup の `registry.iss` はどちらも `{5d1cb710}` のみを COM 登録する（`{5d1cb711}～{5d1cb716}` は Step 14 にて削除済み）。
+
 #### シェルアイコンオーバーレイ識別子 (HKLM\Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers)
 
 ```
@@ -791,9 +793,11 @@ else if (IsEqualIID(rclsid, CLSID_TortoiseCVSOverlay_Unversioned))
 
 **3. `build/install64.reg` および `dist/TortoiseCVS-x64/install64.reg`** — 7 CLSID を HKCR\CLSID に COM 登録 + Shell Extensions Approved に追加
 
+   旧 `ShellIconOverlayIdentifiers\TortoiseCVS0〜6` エントリを削除し、`HKLM\SOFTWARE\TortoiseOverlays\*\CVS` への相乗りマッピング 7個を追加（Step 14 にて実施）
+
 #### TortoiseGit への影響
 
-なし。TortoiseGit の CLSID ({C5994560-53D9-4125-87C9-F193FC689CB2} 等) は一切変更していない。
+既存 TortoiseGit の CLSID 値（`{C5994560}～{C5994566}`）は変更しない。TortoiseGit 未導入時は同梱 DLL 用に `Tortoise8Ignored`（`{C5994567}`）/ `Tortoise9Unversioned`（`{C5994568}`）を追加登録する。
 
 #### ビルド・配布
 
@@ -1068,11 +1072,11 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
    | ファイル | インストール先 |
    |---------|--------------|
-   | `TortoiseOverlays.dll` | `{commonpf64}\Common Files\TortoiseOverlays\` |
-   | `icons\*` (144ファイル, 16テーマ) | `{commonpf64}\Common Files\TortoiseOverlays\icons\` |
-   | `License.txt` | `{commonpf64}\Common Files\TortoiseOverlays\` |
+   | `TortoiseOverlays.dll` | `{commoncf64}\TortoiseOverlays\` |
+   | `icons\*` (144ファイル, 16テーマ) | `{commoncf64}\TortoiseOverlays\icons\` |
+   | `License.txt` | `{commoncf64}\TortoiseOverlays\` |
 
-2. **`[Registry]` セクション** — TortoiseOverlays CLSID 7個の COM 登録 + ShellIconOverlayIdentifiers 登録（`Check: not TortoiseOverlaysInstalled` 条件付き）
+2. **`[Registry]` セクション** — TortoiseOverlays CLSID 9個（{C5994560}～{C5994568}）の COM 登録 + ShellIconOverlayIdentifiers 登録（CVS マッピングは 7個）（`Check: not TortoiseOverlaysInstalled` 条件付き）
 
    | CLSID | 種別 | ShellIconOverlayIdentifiers 名 |
    |-------|------|-------------------------------|
@@ -1104,7 +1108,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
 #### ライセンス遵守
 
-`License.txt` を `{commonpf64}\Common Files\TortoiseOverlays\` に配置することで TortoiseSVN プロジェクト由来の明示条件（条件1c）を満たす。
+`License.txt` を `{commoncf64}\TortoiseOverlays\` に配置することで TortoiseSVN プロジェクト由来の明示条件（条件1c）を満たす。
 
 #### ビルド・動作確認
 
@@ -1155,7 +1159,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 アイコン動作調査の結果、以下のレジストリエントリが不要（デッドパス）であることが確認された。
 
 1. **`{5d1cb711-718}` COM 登録** — TortoiseCVS 独自オーバーレイ CLSID だが `ShellIconOverlayIdentifiers\TortoiseCVS0〜6` は 15スロット制限で永久に読み込まれないため無意味
-2. **旧 TortoiseOverlays マッピング** — `registry.iss` が旧 CLSID (`{5d1cb71x}`) を `HKLM\SOFTWARE\TortoiseOverlays\*\CVS` に書いていたが、`install64-gh.iss` で正しい CLSID に上書きされるため registry.iss 側は dead
+2. **旧 TortoiseOverlays マッピング** — `registry.iss` には TortoiseOverlays マッピングは含まれない（Step 14 で削除済み）。`install64-gh.iss` が TortoiseOverlays 用マッピングと新 CLSID を直接登録する
 3. **Deleted/Locked 旧 CLSID** — `HKLM\SOFTWARE\TortoiseOverlays\Deleted\CVS` と `Locked\CVS` に旧 CLSID (`{5d1cb717-718}`) が残存していた
 
 #### 修正内容

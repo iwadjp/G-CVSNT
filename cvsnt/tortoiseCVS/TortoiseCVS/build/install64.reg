@@ -15,48 +15,6 @@ Windows Registry Editor Version 5.00
 @="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
 "ThreadingModel"="Apartment"
 
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb711-1c4b-11d4-bed5-005004b1f42f}]
-@="TortoiseCVS"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb711-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
-@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
-"ThreadingModel"="Apartment"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb712-1c4b-11d4-bed5-005004b1f42f}]
-@="TortoiseCVS"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb712-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
-@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
-"ThreadingModel"="Apartment"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb713-1c4b-11d4-bed5-005004b1f42f}]
-@="TortoiseCVS"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb713-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
-@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
-"ThreadingModel"="Apartment"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb714-1c4b-11d4-bed5-005004b1f42f}]
-@="TortoiseCVS"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb714-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
-@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
-"ThreadingModel"="Apartment"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb715-1c4b-11d4-bed5-005004b1f42f}]
-@="TortoiseCVS"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb715-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
-@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
-"ThreadingModel"="Apartment"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb716-1c4b-11d4-bed5-005004b1f42f}]
-@="TortoiseCVS"
-
-[HKEY_CLASSES_ROOT\CLSID\{5d1cb716-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
-@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
-"ThreadingModel"="Apartment"
-
 ; --- TortoiseOverlays 相乗り用 CVS CLSID 登録 ---
 ; TortoiseOverlays.dll が HKLM\SOFTWARE\TortoiseOverlays\*\CVS から読む CLSID を COM 登録
 
@@ -113,12 +71,6 @@ Windows Registry Editor Version 5.00
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved]
 "{5d1cb710-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
-"{5d1cb711-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
-"{5d1cb712-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
-"{5d1cb713-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
-"{5d1cb714-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
-"{5d1cb715-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
-"{5d1cb716-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS"
 "{06367927-6A25-4087-97BC-22E4C819D7D3}"="Tortoise CVS"
 "{DD9F1BBF-004E-4D7E-82BC-509A79101C65}"="Tortoise CVS"
 "{F2CBE515-CAFA-465B-9E2C-AB806F3F313F}"="Tortoise CVS"
