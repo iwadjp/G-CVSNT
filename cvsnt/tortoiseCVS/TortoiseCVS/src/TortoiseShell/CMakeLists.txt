@@ -75,3 +75,8 @@ LINK_LIBRARIES(
 )
 
 ADD_LIBRARY(TortoiseShell SHARED ${STDAFX_SOURCE} ${CPP_SOURCE} ShellExt.def TortoiseShell.rc)
+
+if(MSVC)
+    set_target_properties(TortoiseShell PROPERTIES
+        VS_USER_PROPS "${CMAKE_BINARY_DIR}/win10_manifest.props")
+endif()

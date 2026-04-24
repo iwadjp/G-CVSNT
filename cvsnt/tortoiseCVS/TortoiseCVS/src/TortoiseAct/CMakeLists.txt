@@ -212,6 +212,11 @@ LINK_LIBRARIES(
 
 ADD_EXECUTABLE(TortoiseAct WIN32 ${STDAFX_SOURCE} ${C_SOURCE} ${CPP_SOURCE} TortoiseAct.rc)
 
+if(MSVC)
+    set_target_properties(TortoiseAct PROPERTIES
+        VS_USER_PROPS "${CMAKE_BINARY_DIR}/win10_manifest.props")
+endif()
+
 SET_TARGET_PROPERTIES(TortoiseAct PROPERTIES LINK_FLAGS_RELEASE "/NODEFAULTLIB:wxbase28u_net.lib /NODEFAULTLIB:wxbase28u_xml.lib /NODEFAULTLIB:wxexpat.lib /NODEFAULTLIB:wxjpeg.lib /NODEFAULTLIB:wxmsw28u_aui.lib /NODEFAULTLIB:wxmsw28u_html.lib /NODEFAULTLIB:wxmsw28u_media.lib /NODEFAULTLIB:wxmsw28u_qa.lib /NODEFAULTLIB:wxmsw28u_richtext.lib /NODEFAULTLIB:wxmsw28u_xrc.lib /NODEFAULTLIB:wxpng.lib /NODEFAULTLIB:wxregexu.lib /NODEFAULTLIB:wxtiff.lib /NODEFAULTLIB:wxzlib.lib")
 SET_TARGET_PROPERTIES(TortoiseAct PROPERTIES LINK_FLAGS_DEBUG "/NODEFAULTLIB:wxbase28ud_net.lib /NODEFAULTLIB:wxbase28ud_xml.lib /NODEFAULTLIB:wxexpatd.lib /NODEFAULTLIB:wxjpegd.lib /NODEFAULTLIB:wxmsw28ud_aui.lib /NODEFAULTLIB:wxmsw28ud_html.lib /NODEFAULTLIB:wxmsw28ud_media.lib /NODEFAULTLIB:wxmsw28ud_qa.lib /NODEFAULTLIB:wxmsw28ud_richtext.lib /NODEFAULTLIB:wxmsw28ud_xrc.lib /NODEFAULTLIB:wxpngd.lib /NODEFAULTLIB:wxregexud.lib /NODEFAULTLIB:wxtiffd.lib /NODEFAULTLIB:wxzlibd.lib")
 

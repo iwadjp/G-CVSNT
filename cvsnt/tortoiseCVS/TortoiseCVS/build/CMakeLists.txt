@@ -61,9 +61,9 @@ MACRO(ADD_FLEX_FILES)
 
 	ADD_CUSTOM_COMMAND(
             OUTPUT ${_out}
-            COMMAND C:/winflexbison/flex${CMAKE_EXECUTABLE_SUFFIX}
+            COMMAND C:/winflexbison/win_flex${CMAKE_EXECUTABLE_SUFFIX}
             ARGS
-	    -+ -d -S${CMAKE_CURRENT_SOURCE_DIR}/flex.skl
+	    -+ -d
             -o${_out}
             ${_in}
 	    WORKING_DIRECTORY "C:/winflexbison"
@@ -231,10 +231,29 @@ ENDIF(OPT_MARCH_HARE_BUILD)
 
 #################################################
 #
+#          WINDOWS 10/11 MANIFEST PROPS
+#
+#################################################
+
+# Generate a .props file that injects WindowsXP.manifest (which contains the
+# Windows 10/11 compatibility GUID) into TortoiseAct and TortoiseShell via
+# VS_USER_PROPS.  Using configure_file ensures the absolute path is baked in
+# at cmake-generate time and survives future cmake regenerations.
+if(MSVC)
+    set(MANIFEST_WINXP_FILE
+        "${CMAKE_SOURCE_DIR}/../src/Icons/WindowsXP.manifest")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/win10_manifest.props.in"
+        "${CMAKE_BINARY_DIR}/win10_manifest.props"
+        @ONLY)
+endif()
+
+#################################################
+#
 #                SUBDIRECTORIES
 #
 #################################################
-  	 
+
 # Static libraries
 ADD_SUBDIRECTORY(../src/CVSGlue CVSGlue)
 ADD_SUBDIRECTORY(../src/cvstree cvstree)

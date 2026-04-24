@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- Chain the standard per-user props so existing customizations are preserved. -->
+  <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"
+          Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')"
+          Label="LocalAppDataPlatform" />
+  <!-- Inject WindowsXP.manifest so the Windows 10/11 compatibility GUID
+       ({8e0f7a12-...}) is embedded in every build configuration.
+       Path is substituted by CMake configure_file at generation time. -->
+  <ItemDefinitionGroup>
+    <Manifest>
+      <AdditionalManifestFiles>@MANIFEST_WINXP_FILE@;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+      <EmbedManifest>true</EmbedManifest>
+    </Manifest>
+  </ItemDefinitionGroup>
+</Project>
