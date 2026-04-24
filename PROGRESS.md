@@ -1037,6 +1037,77 @@ cmake 再生成時、`VS_USER_PROPS` により各 vcxproj の `<ImportGroup Labe
 
 ---
 
+### Step 12: TortoiseOverlays.dll 梱包対応 ✅ 完了 (2026-04-25)
+
+#### 背景
+
+TortoiseGit/SVN がインストールされていない環境では `ShellIconOverlayIdentifiers\  Tortoise1Normal` 等が存在しないため、TortoiseOverlays.dll が起動せず TortoiseCVS のアイコンが表示されない。
+
+#### 解決方式：案A（DLL 直接梱包）
+
+TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、TortoiseGit/SVN がない環境でのみ配置・登録する。
+
+#### 修正内容
+
+**`build/install64-gh.iss`**
+
+1. **`[Files]` セクション** — TortoiseOverlays 関連ファイルを追加（`Check: not TortoiseOverlaysInstalled` 条件付き）
+
+   | ファイル | インストール先 |
+   |---------|--------------|
+   | `TortoiseOverlays.dll` | `{commonpf64}\Common Files\TortoiseOverlays\` |
+   | `icons\*` (144ファイル, 16テーマ) | `{commonpf64}\Common Files\TortoiseOverlays\icons\` |
+   | `License.txt` | `{commonpf64}\Common Files\TortoiseOverlays\` |
+
+2. **`[Registry]` セクション** — TortoiseOverlays CLSID 7個の COM 登録 + ShellIconOverlayIdentifiers 登録（`Check: not TortoiseOverlaysInstalled` 条件付き）
+
+   | CLSID | 種別 | ShellIconOverlayIdentifiers 名 |
+   |-------|------|-------------------------------|
+   | `{C5994560-53D9-...}` | Normal    | `  Tortoise1Normal` |
+   | `{C5994561-53D9-...}` | Modified  | `  Tortoise2Modified` |
+   | `{C5994562-53D9-...}` | Conflict  | `  Tortoise3Conflict` |
+   | `{C5994563-53D9-...}` | Locked    | `  Tortoise4Locked` |
+   | `{C5994564-53D9-...}` | ReadOnly  | `  Tortoise5ReadOnly` |
+   | `{C5994565-53D9-...}` | Deleted   | `  Tortoise6Deleted` |
+   | `{C5994566-53D9-...}` | Added     | `  Tortoise7Added` |
+
+   先頭スペース2個の命名で OneDrive / Google Drive より高優先度スロットを確保。
+
+3. **`[Code]` セクション** — `TortoiseOverlaysInstalled()` 関数を追加
+
+   ```pascal
+   function TortoiseOverlaysInstalled(): Boolean;
+   begin
+     Result := RegKeyExists(HKLM,
+       'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\' +
+       'ShellIconOverlayIdentifiers\  Tortoise1Normal');
+   end;
+   ```
+
+   TortoiseGit がいる場合 → `true` → DLL コピー・CLSID 登録・ShellIconOverlays 登録を全スキップ。  
+   TortoiseGit がいない場合 → `false` → 梱包 DLL で全登録。
+
+#### ライセンス遵守
+
+`License.txt` を `{commonpf64}\Common Files\TortoiseOverlays\` に配置することで TortoiseSVN プロジェクト由来の明示条件（条件1c）を満たす。
+
+#### ビルド・動作確認
+
+- [x] `ISCC.exe install64-gh.iss` でビルド成功（警告3件は既存の deprecation、エラーなし）
+- [x] `dist\installer\TortoiseCVS-x64-Setup.exe` 生成 (8.0 MB)
+- [x] インストール実行 → TortoiseGit あり環境では DLL コピーがスキップされる ✅
+- [x] `ShellIconOverlayIdentifiers\  Tortoise1Normal` (TortoiseGit のもの) が維持されている ✅
+- [x] `HKLM\SOFTWARE\TortoiseOverlays\*\CVS` マッピング 7個が正しく登録されている ✅
+- [x] TortoiseShell64.dll が `{pf64}\TortoiseCVS64\` に配置されている ✅
+- [ ] TortoiseGit なし環境での動作確認（業務PC で要確認）
+
+#### ビルド中の修正点
+
+- `[Code]` セクションの `RegKeyExists` の第1引数を `HKLM64`（`[Registry]` 専用記法）→ `HKLM` に修正
+- ヘッダーコメントを "Requires TortoiseGit" → "TortoiseOverlays.dll is bundled" に更新
+
+---
+
 ## 補足: ビルド環境
 
 | 項目 | 内容 |

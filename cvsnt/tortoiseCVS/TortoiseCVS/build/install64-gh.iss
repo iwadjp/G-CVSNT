@@ -1,6 +1,6 @@
 ; TortoiseCVS (G-CVSNT) x64 installer for GitHub distribution
 ; Based on TortoiseCVS.iss / registry.iss
-; Requires: TortoiseGit (which includes TortoiseOverlays.dll) pre-installed.
+; TortoiseOverlays.dll is bundled for systems without TortoiseGit/SVN.
 ; x64 Windows only.
 
 #define APPVER "2.5.05.3744"
@@ -81,6 +81,12 @@ Source: {#DISTDIR}\mdns\mini.dll;         DestDir: {app}\mdns; Flags: restartrep
 ; xdiff plugins
 Source: {#DISTDIR}\xdiff\xml.dll;         DestDir: {app}\xdiff; Flags: restartreplace uninsrestartdelete ignoreversion
 
+; TortoiseOverlays (bundled for systems without TortoiseGit/SVN)
+; License: TortoiseSVN Project (https://tortoisesvn.net) - see installed License.txt
+Source: "C:\Program Files\Common Files\TortoiseOverlays\TortoiseOverlays.dll"; DestDir: {commonpf64}\Common Files\TortoiseOverlays; Flags: ignoreversion; Check: not TortoiseOverlaysInstalled
+Source: "C:\Program Files\Common Files\TortoiseOverlays\icons\*";              DestDir: {commonpf64}\Common Files\TortoiseOverlays\icons; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not TortoiseOverlaysInstalled
+Source: "C:\Program Files\Common Files\TortoiseOverlays\License.txt";          DestDir: {commonpf64}\Common Files\TortoiseOverlays; Flags: ignoreversion; Check: not TortoiseOverlaysInstalled
+
 [Registry]
 
 ; --- Standard TortoiseCVS shell extension CLSIDs and handlers ---
@@ -148,6 +154,47 @@ Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions
 Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved; ValueType: string; ValueName: {{407086D3-BB16-4B50-A3B2-A965C002D7CF}; ValueData: TortoiseCVS; Flags: uninsdeletevalue; Check: IsWin64
 Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved; ValueType: string; ValueName: {{488E3E10-3D35-4F85-9C38-143E8D4396C7}; ValueData: TortoiseCVS; Flags: uninsdeletevalue; Check: IsWin64
 
+; --- TortoiseOverlays COM CLSID registration (only when bundling DLL) ---
+; ThreadingModel=Apartment, points to {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll
+; Tortoise1Normal
+Root: HKCR64; Subkey: CLSID\{{C5994560-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994560-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994560-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+; Tortoise2Modified
+Root: HKCR64; Subkey: CLSID\{{C5994561-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994561-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994561-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+; Tortoise3Conflict
+Root: HKCR64; Subkey: CLSID\{{C5994562-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994562-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994562-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+; Tortoise4Locked
+Root: HKCR64; Subkey: CLSID\{{C5994563-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994563-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994563-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+; Tortoise5ReadOnly
+Root: HKCR64; Subkey: CLSID\{{C5994564-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994564-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994564-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+; Tortoise6Deleted
+Root: HKCR64; Subkey: CLSID\{{C5994565-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994565-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994565-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+; Tortoise7Added
+Root: HKCR64; Subkey: CLSID\{{C5994566-53D9-4125-87C9-F193FC689CB2};                    ValueType: string; ValueName: ; ValueData: TortoiseOverlays Class; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994566-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ; ValueData: {commonpf64}\Common Files\TortoiseOverlays\TortoiseOverlays.dll; Check: not TortoiseOverlaysInstalled
+Root: HKCR64; Subkey: CLSID\{{C5994566-53D9-4125-87C9-F193FC689CB2}\InProcServer32;     ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: not TortoiseOverlaysInstalled
+
+; --- ShellIconOverlayIdentifiers (only when bundling DLL) ---
+; Leading double-space gives higher sort priority than OneDrive/Google Drive entries
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise1Normal;      ValueType: string; ValueName: ; ValueData: {{C5994560-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise2Modified;    ValueType: string; ValueName: ; ValueData: {{C5994561-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise3Conflict;    ValueType: string; ValueName: ; ValueData: {{C5994562-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise4Locked;      ValueType: string; ValueName: ; ValueData: {{C5994563-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise5ReadOnly;    ValueType: string; ValueName: ; ValueData: {{C5994564-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise6Deleted;     ValueType: string; ValueName: ; ValueData: {{C5994565-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\  Tortoise7Added;       ValueType: string; ValueName: ; ValueData: {{C5994566-53D9-4125-87C9-F193FC689CB2}; Flags: uninsdeletekey; Check: not TortoiseOverlaysInstalled
+
 [Icons]
 Name: {group}\Preferences; Filename: {app}\TortoiseAct.exe; Parameters: CVSPrefs
 Name: {group}\About;       Filename: {app}\TortoiseAct.exe; Parameters: CVSAbout
@@ -156,13 +203,14 @@ Name: {group}\About;       Filename: {app}\TortoiseAct.exe; Parameters: CVSAbout
 Type: Files; Name: {app}\TortoiseSetupHelper.exe
 
 [Code]
+function TortoiseOverlaysInstalled(): Boolean;
+begin
+  Result := RegKeyExists(HKLM,
+    'SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\' +
+    'ShellIconOverlayIdentifiers\  Tortoise1Normal');
+end;
+
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-  if not RegKeyExists(HKLM, 'SOFTWARE\TortoiseOverlays') then
-    MsgBox(
-      'TortoiseOverlays is not installed.' + #13#10 +
-      'Please install TortoiseGit first to enable icon overlays.' + #13#10#13#10 +
-      'Installation will continue, but icon overlays will not appear until TortoiseGit is installed.',
-      mbInformation, MB_OK);
 end;
