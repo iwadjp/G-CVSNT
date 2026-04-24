@@ -11,19 +11,19 @@ AppID=TortoiseCVS
 AppName=TortoiseCVS (G-CVSNT x64)
 AppVerName=TortoiseCVS (G-CVSNT x64) {#APPVER}
 AppVersion={#APPVER}
-DefaultDirName={pf64}\TortoiseCVS64
+DefaultDirName={commonpf64}\TortoiseCVS64
 DefaultGroupName=TortoiseCVS
 OutputDir=..\..\..\..\..\dist\installer
 OutputBaseFilename=TortoiseCVS-x64-Setup
 PrivilegesRequired=admin
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 Compression=lzma/ultra
 SolidCompression=yes
 DirExistsWarning=no
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\TortoiseAct.exe
-MinVersion=6.1
+MinVersion=6.1sp1
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
