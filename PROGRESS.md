@@ -895,7 +895,7 @@ end;
 
 ---
 
-### Step 11: GetVersionEx Win11 互換性修正 ✅ 完了 (2026-04-24)
+### Step 11: GetVersionEx Win11 互換性修正 ✅ 完全解決 (2026-04-24 / 恒久化 2026-04-25)
 
 #### 背景
 
@@ -967,6 +967,56 @@ manifest が build ツールチェーンに自動包含されていなかった�
 </ItemDefinitionGroup>
 ```
 
+**6. CMakeLists.txt への恒久化 (2026-04-25)**
+
+vcxproj の手動追記は cmake 再生成で上書きされるため、CMakeLists.txt 側で恒久化した。
+
+`build/CMakeLists.txt` — `ADD_FLEX_FILES` マクロを `win_flex` に修正（`flex 2.6.4` は旧 2.5.x 用 skeleton を拒否するため）:
+
+```cmake
+# 修正前
+COMMAND C:/winflexbison/flex${CMAKE_EXECUTABLE_SUFFIX}
+ARGS -+ -d -S${CMAKE_CURRENT_SOURCE_DIR}/flex.skl -o${_out} ${_in}
+
+# 修正後
+COMMAND C:/winflexbison/win_flex${CMAKE_EXECUTABLE_SUFFIX}
+ARGS -+ -d -o${_out} ${_in}
+```
+
+`build/win10_manifest.props.in` — 新規作成（manifest 注入用 MSBuild props テンプレート）:
+
+```xml
+<ItemDefinitionGroup>
+  <Manifest>
+    <AdditionalManifestFiles>@MANIFEST_WINXP_FILE@;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    <EmbedManifest>true</EmbedManifest>
+  </Manifest>
+</ItemDefinitionGroup>
+```
+
+`build/CMakeLists.txt` — `configure_file` で props ファイルを生成、`ADD_SUBDIRECTORY` 直前に追加:
+
+```cmake
+if(MSVC)
+    set(MANIFEST_WINXP_FILE "${CMAKE_SOURCE_DIR}/../src/Icons/WindowsXP.manifest")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/win10_manifest.props.in"
+        "${CMAKE_BINARY_DIR}/win10_manifest.props"
+        @ONLY)
+endif()
+```
+
+`src/TortoiseAct/CMakeLists.txt` / `src/TortoiseShell/CMakeLists.txt` — `VS_USER_PROPS` を追加:
+
+```cmake
+if(MSVC)
+    set_target_properties(TortoiseAct PROPERTIES
+        VS_USER_PROPS "${CMAKE_BINARY_DIR}/win10_manifest.props")
+endif()
+```
+
+cmake 再生成時、`VS_USER_PROPS` により各 vcxproj の `<ImportGroup Label="PropertySheets">` に props ファイルへの絶対パス参照が自動挿入される。props ファイル内で標準ユーザー props (`$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props`) も chain しているため既存のユーザー設定は失われない。
+
 #### ビルド・配布
 
 - [x] `cvsapi.dll` 再ビルド (devenv.com, Build 9617) ✅
@@ -974,11 +1024,16 @@ manifest が build ツールチェーンに自動包含されていなかった�
 - [x] `dist\TortoiseCVS-x64\TortoiseAct.exe` manifest 更新 ✅
 - [x] `dist\TortoiseCVS-x64\TortoiseShell64.dll` manifest 更新 ✅
 - [x] `TortoiseAct.vcxproj` / `TortoiseShell.vcxproj` に `AdditionalManifestFiles` 追加 ✅
+- [x] CMakeLists.txt 恒久化 (2026-04-25) ✅
+  - `build/CMakeLists.txt`: `ADD_FLEX_FILES` を `win_flex` に修正、`configure_file` 追加
+  - `build/win10_manifest.props.in`: 新規作成
+  - `src/TortoiseAct/CMakeLists.txt`: `VS_USER_PROPS` 追加
+  - `src/TortoiseShell/CMakeLists.txt`: `VS_USER_PROPS` 追加
+- [x] cmake 再生成後のビルド確認 (exit code 0、manifest `{8e0f7a12}` 埋め込み確認) ✅
 
 #### 残課題
 
 - [ ] `installer.dll` 再ビルド（VS2026 が `isComplete: false` 状態のため保留。VS 修復後に `windows-NT/installer/installer.vcxproj` を rebuild）
-- [ ] 次回 cmake 再生成時に vcxproj の手動変更が上書きされる → CMakeLists.txt に `set_target_properties(... VS_USER_PROPS ...)` 等で恒久化することを推奨
 
 ---
 
