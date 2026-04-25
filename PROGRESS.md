@@ -1072,9 +1072,11 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
    | ファイル | インストール先 |
    |---------|--------------|
-   | `TortoiseOverlays.dll` | `{commoncf64}\TortoiseOverlays\` |
-   | `icons\*` (144ファイル, 16テーマ) | `{commoncf64}\TortoiseOverlays\icons\` |
-   | `License.txt` | `{commoncf64}\TortoiseOverlays\` |
+   | `TortoiseOverlays.dll` | `{commonpf64}\Common Files\TortoiseOverlays\` |
+   | `icons\*` (144ファイル, 16テーマ) | `{commonpf64}\Common Files\TortoiseOverlays\icons\` |
+   | `License.txt` | `{commonpf64}\Common Files\TortoiseOverlays\` |
+
+   Source パスはリポジトリ内 `third-party\TortoiseOverlays\` への相対パスに変更済み（他環境でのビルド再現性を確保）。
 
 2. **`[Registry]` セクション** — TortoiseOverlays CLSID 9個（{C5994560}～{C5994568}）の COM 登録 + ShellIconOverlayIdentifiers 登録（CVS マッピングは 7個）（`Check: not TortoiseOverlaysInstalled` 条件付き）
 
@@ -1108,7 +1110,7 @@ TortoiseOverlays.dll + icons\ + License.txt をインストーラに梱包し、
 
 #### ライセンス遵守
 
-`License.txt` を `{commoncf64}\TortoiseOverlays\` に配置することで TortoiseSVN プロジェクト由来の明示条件（条件1c）を満たす。
+`License.txt` を `{commonpf64}\Common Files\TortoiseOverlays\` に配置することで TortoiseSVN プロジェクト由来の明示条件（条件1c）を満たす。
 
 #### ビルド・動作確認
 

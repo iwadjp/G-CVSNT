@@ -83,9 +83,9 @@ Source: {#DISTDIR}\xdiff\xml.dll;         DestDir: {app}\xdiff; Flags: restartre
 
 ; TortoiseOverlays (bundled for systems without TortoiseGit/SVN)
 ; License: TortoiseSVN Project (https://tortoisesvn.net) - see installed License.txt
-Source: "C:\Program Files\Common Files\TortoiseOverlays\TortoiseOverlays.dll"; DestDir: {commonpf64}\Common Files\TortoiseOverlays; Flags: ignoreversion; Check: not TortoiseOverlaysInstalled
-Source: "C:\Program Files\Common Files\TortoiseOverlays\icons\*";              DestDir: {commonpf64}\Common Files\TortoiseOverlays\icons; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not TortoiseOverlaysInstalled
-Source: "C:\Program Files\Common Files\TortoiseOverlays\License.txt";          DestDir: {commonpf64}\Common Files\TortoiseOverlays; Flags: ignoreversion; Check: not TortoiseOverlaysInstalled
+Source: "..\third-party\TortoiseOverlays\TortoiseOverlays.dll"; DestDir: {commonpf64}\Common Files\TortoiseOverlays; Flags: ignoreversion; Check: not TortoiseOverlaysInstalled
+Source: "..\third-party\TortoiseOverlays\icons\*";              DestDir: {commonpf64}\Common Files\TortoiseOverlays\icons; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not TortoiseOverlaysInstalled
+Source: "..\third-party\TortoiseOverlays\License.txt";          DestDir: {commonpf64}\Common Files\TortoiseOverlays; Flags: ignoreversion; Check: not TortoiseOverlaysInstalled
 
 [Registry]
 
