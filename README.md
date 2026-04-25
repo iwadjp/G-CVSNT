@@ -21,7 +21,7 @@
 
 ## インストール方法
 
-1. [GitHub Releases](<後で追加>) から `TortoiseCVS-x64-Setup.exe` をダウンロード
+1. [GitHub Releases](https://github.com/iwadjp/G-CVSNT/releases/tag/v2.5.05.3744-win11-x64) から `TortoiseCVS-x64-Setup.exe` をダウンロード
 2. `TortoiseCVS-x64-Setup.exe` を実行
 3. インストール完了後、エクスプローラーを再起動（またはPCを再起動）
 4. エクスプローラーで CVS 管理フォルダを右クリックし、TortoiseCVS のメニューが表示されれば完了
@@ -65,7 +65,7 @@ Key changes:
 
 ## Installation
 
-1. Download `TortoiseCVS-x64-Setup.exe` from [GitHub Releases](<to be added>)
+1. Download `TortoiseCVS-x64-Setup.exe` from [GitHub Releases](https://github.com/iwadjp/G-CVSNT/releases/tag/v2.5.05.3744-win11-x64)
 2. Run `TortoiseCVS-x64-Setup.exe`
 3. Restart Explorer (or reboot PC) after installation
 4. Right-click a CVS-managed folder in Explorer — verify that the TortoiseCVS menu appears
