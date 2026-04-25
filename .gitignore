@@ -37,3 +37,7 @@ log2
 MSG*.bin
 ServiceMsg.h
 ServiceMsg.rc
+
+# Claude Code ローカル設定（個人環境情報を含むため除外）
+CLAUDE.md
+.claudeignore
