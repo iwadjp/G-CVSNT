@@ -518,9 +518,18 @@ void CRevFile::SetRevTime(const char *s)
    state = 0;
    while (*p && state < 6)
    {
-      *b = *p;
-      b++;
-      p++;
+      if (static_cast<size_t>(b - buf) < sizeof(buf) - 1)
+      {
+         *b = *p;
+         b++;
+         p++;
+      }
+      else
+      {
+         // Avoid overflowing buf if a malformed date field is too long.
+         while (*p && isdigit(*p))
+            p++;
+      }
       
       if (!isdigit(*p))
       {
@@ -581,15 +590,20 @@ void CRevFile::SetLines(const char *s)
       b = buf;
       while (*p && *p != '+' && *p != '-' && !isdigit(*p))
         p++;
+      if (!*p)
+         break;
       *b = *p;
       p++;
       b++;
 
       while(*p && isdigit(*p))
       {
-         *b = *p;
+         if (static_cast<size_t>(b - buf) < sizeof(buf) - 1)
+         {
+            *b = *p;
+            b++;
+         }
          p++;
-         b++;
       }
       *b = '\0';
       
