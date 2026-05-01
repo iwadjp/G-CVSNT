@@ -1205,6 +1205,310 @@ end;
 
 ---
 
+### Step 15: ExplorerCommand アイコン修正（整数 ID 化）✅ 完了 (2026-05-01)
+
+#### 症状
+
+Windows 10 環境でコンテキストメニューのアイコンが表示されなくなった。
+
+#### 根本原因
+
+`IExplorerCommand::GetIcon` の旧実装 `GetDllIconSpec()` が返していた `"path,0"` は PE リソースディレクトリの位置インデックス 0 番目のアイコンを参照する。TortoiseShell.rc の IDI_* アイコンは以前すべて**文字列名リソース**（`IDI_CHECKOUT` 等）として定義されていたため、PE 内での並び順は文字列名アルファベット順となり、インデックス 0 は `IDI_ABOUT`（最初の "A"）になっていた。結果、全コマンドが同じ "About" アイコン（またはシェルの解釈次第でアイコンなし）になっていた。
+
+また `ContextMenu.cpp` の旧メニューパスも `LoadImageA(g_hInstance, "IDI_CHECKOUT", ...)` という文字列名ロードに依存していたため、整数 ID 化後は更新が必須だった。
+
+#### 修正内容
+
+**1. `src/TortoiseShell/TortoiseShellRes.h`** — メニューアイコン整数 ID (200–230) を追加
+
+RC プリプロセッサが `IDI_CHECKOUT ICON "..."` を `206 ICON "..."` に展開するため `.rc` ファイル自体は無変更。
+
+**2. `src/TortoiseShell/ContextMenu.cpp`** — 旧メニュー (IContextMenu / Windows 10) のアイコンロードを維持
+
+```cpp
+// 追加ヘルパー
+static UINT GetIconIntId(const std::string& sName);      // "IDI_CHECKOUT" → 206
+static HICON LoadMenuIconShared(const std::string& sIcon); // 内部で MAKEINTRESOURCEA 使用
+
+// IconToBitmap / IconToBitmapPARGB32 のLoadImageA を整数IDロードに変更
+UINT iconId = GetIconIntId(sIcon);
+HICON hIcon = iconId
+    ? LoadImageA(g_hInstance, MAKEINTRESOURCEA(iconId), IMAGE_ICON, ...)
+    : LoadImageA(g_hInstance, sIcon.c_str(), IMAGE_ICON, ...);  // 未知名はNULL→アイコンなし
+```
+
+3 箇所のインライン `LoadImageA` 呼び出しも `LoadMenuIconShared(iconname)` に置き換え。
+
+**3. `src/TortoiseShell/ExplorerCommand.cpp`** — IExplorerCommand::GetIcon をコマンド別対応に変更
+
+```cpp
+// GetDllIconSpec() を廃止して以下に置き換え
+static UINT MenuIconNameToId(const std::string& name);         // "checkout" → IDI_CHECKOUT(206)
+static HRESULT GetIconSpecForId(UINT id, LPWSTR* ppszIcon);   // "path,-206" 形式で返す
+
+// CExplorerCommandItem::GetIcon
+return GetIconSpecForId(MenuIconNameToId(md.GetIcon()), ppszIcon);
+
+// CExplorerCommandRoot::GetIcon
+return GetIconSpecForId(IDI_TORTOISE, ppszIcon);
+```
+
+"makemodule" → `IDI_MAKEMOD` (RC 側は "makemod" 名なのでカスタムマッピング)。"switch" は RC にアイコンなし → `E_NOTIMPL`（アイコンなし、旧来と同じ動作）。
+
+**4. `src/TortoiseShell/PropSheet.cpp`** — `pszIcon` を整数 ID に変更
+
+```cpp
+// 修正前
+psp.pszIcon = wxT("IDI_TORTOISE");
+// 修正後
+psp.pszIcon = MAKEINTRESOURCE(IDI_TORTOISE);
+```
+
+#### ビルド・配布
+
+- [x] `TortoiseShell.dll` ビルド成功（警告 0 件、エラー 0 件）✅
+- [x] DLL 内アイコンリソース確認: 整数 ID #200〜#230 の 31 エントリ ✅（文字列名リソースなし）
+- [x] `dist\TortoiseCVS-x64\TortoiseShell64.dll` 更新 (2026-05-01) ✅
+- [x] `dist\installer\TortoiseCVS-x64-Setup.exe` 再ビルド ✅
+
+#### Windows 10 旧メニューへの影響
+
+`ContextMenu.cpp` の `GetIconIntId` + `LoadMenuIconShared` により、整数 ID への移行後も旧 `IContextMenu` パス（Windows 10 旧メニュー）のアイコン表示は維持される。
+
+---
+
+### Step 16: マニフェスト x86/x64 競合修正（DLL ロード失敗解消）✅ 完了 (2026-05-01)
+
+#### 症状
+
+Step 15 のビルド後も Windows 10 で CVS コンテキストメニューが一切表示されなかった。
+
+#### 根本原因
+
+`WindowsXP.manifest` の `processorArchitecture="x86"` が 64bit DLL に埋め込まれたことで、アクティベーションコンテキストの競合が発生し DLL 自体のロードに失敗していた。
+
+アプリケーションイベントログ:
+```
+Activation context generation failed for "C:\Program Files\TortoiseCVS64\TortoiseShell64.dll"
+A component version required by the application conflicts with another component version already active.
+Component 1: amd64_microsoft.windows.common-controls_... (Explorer が持つ)
+Component 2: x86_microsoft.windows.common-controls_...  (DLL manifest が要求)
+```
+
+Step 11 で WindowsXP.manifest に Win10/11 互換 GUID を追加した際、元の manifest に `processorArchitecture="x86"` が残っていた。64bit Explorer がこの DLL をロードしようとすると、すでにアクティブな amd64 common-controls と x86 common-controls が競合してロードが即時失敗する。
+
+#### 修正内容
+
+**`src/Icons/WindowsXP.manifest`**
+
+```xml
+<!-- 修正前 -->
+<assemblyIdentity processorArchitecture="x86" .../>
+<assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls"
+    processorArchitecture="x86" .../>
+
+<!-- 修正後 -->
+<assemblyIdentity processorArchitecture="*" .../>
+<assemblyIdentity type="win32" name="Microsoft.Windows.Common-Controls"
+    processorArchitecture="*" .../>
+```
+
+`"*"` はプロセッサ非依存（neutral）を意味し、64bit/32bit どちらのホストプロセスからロードされても競合しない。リンカが自動生成する amd64 common-controls エントリ（`"amd64"`）と共存可能。
+
+#### ビルド・配布
+
+- [x] `TortoiseShell.dll` 再ビルド ✅（manifest 確認: `processorArchitecture="*"` + `"amd64"` 共存、x86 なし）
+- [x] `dist\TortoiseCVS-x64\TortoiseShell64.dll` 更新 (1720832 bytes, 2026-05-01 15:02) ✅
+- [x] `C:\Program Files\TortoiseCVS64\TortoiseShell64.dll` 管理者権限でインストール ✅
+- [x] `C:\Ap\TortoiseCVS64\TortoiseShell64.dll` 更新 ✅
+- [x] Explorer 再起動後 CVS コンテキストメニュー表示確認 ✅（ユーザー確認済み）
+
+---
+
+### Step 17: インストーラに Win11 ExplorerCommand 登録を確認・再ビルド ✅ 完了 (2026-05-01)
+
+#### 確認内容
+
+`registry.iss` の調査により、以下のエントリがすでに実装済みであることを確認した。
+
+**ExplorerCommand COM 登録** (`CLSID {5d1cb71a-1c4b-11d4-bed5-005004b1f42f}`, registry.iss 行 80–85):
+
+```ini
+Root: HKCR64; Subkey: CLSID\{5d1cb71a-...};                  ValueData: TortoiseCVS
+Root: HKCR64; Subkey: CLSID\{5d1cb71a-...}\InProcServer32;   ValueData: {app}\TortoiseShell64.dll
+Root: HKCR64; Subkey: CLSID\{5d1cb71a-...}\InProcServer32;   ValueName: ThreadingModel; ValueData: Apartment
+Root: HKLM64; Shell Extensions\Approved; ValueName: {5d1cb71a-...}; ValueData: TortoiseCVS
+```
+
+**ExplorerCommandHandlers** (registry.iss 行 87–102):
+
+| キー | 値 |
+|------|-----|
+| `HKCR64\*\ShellEx\ExplorerCommandHandlers\TortoiseCVS`         | `{5d1cb71a-...}` |
+| `HKCR64\Directory\ShellEx\ExplorerCommandHandlers\TortoiseCVS` | `{5d1cb71a-...}` |
+| `HKCR64\Drive\ShellEx\ExplorerCommandHandlers\TortoiseCVS`     | `{5d1cb71a-...}` |
+| `HKCR64\Folder\ShellEx\ExplorerCommandHandlers\TortoiseCVS`    | `{5d1cb71a-...}` |
+
+これらは `install64-gh.iss` が `#include "registry.iss"` で取り込んでいるため、`install64-gh.iss` 自体への追記は不要だった。
+
+#### インストーラ再ビルド
+
+Step 16 で更新した `TortoiseShell64.dll`（マニフェスト修正版）を含む形でインストーラを再ビルドした。
+
+- [x] `ISCC.exe install64-gh.iss` 実行（コンパイル成功 41.968 sec） ✅
+- [x] `dist\installer\TortoiseCVS-x64-Setup.exe` 更新 (8,393,851 bytes, 2026-05-01 19:41) ✅
+
+#### 含まれるレジストリ登録まとめ (Windows 11 対応)
+
+| 種別 | CLSID | 用途 |
+|------|-------|------|
+| IContextMenu (旧メニュー) | `{5d1cb710-...}` | Windows 10 旧来の右クリックメニュー |
+| IExplorerCommand (新メニュー) | `{5d1cb71a-...}` | Windows 11 モダンコンテキストメニュー |
+| TortoiseOverlays (7 CLSID) | `{06367927-...}` 他 | アイコンオーバーレイ |
+
+---
+
+### Step 18: TortoiseAct.exe マニフェスト x86/x64 競合修正 ✅ 完了 (2026-05-02)
+
+#### 症状
+
+TortoiseAct.exe 起動時にアクティベーションコンテキストの競合が発生し EXE が起動できない。
+
+#### 根本原因
+
+旧ビルド (2026-04-24) の TortoiseAct.exe に埋め込まれたマニフェストが Step 16 前の状態だった:
+
+```xml
+<!-- 旧 (問題あり) -->
+<assemblyIdentity processorArchitecture="x86" .../>
+<dependency processorArchitecture="x86" .../> <!-- x86 common-controls -->
+<dependency processorArchitecture="amd64" .../> <!-- amd64 common-controls -->
+```
+
+x86 と amd64 の common-controls 依存が共存し、64bit プロセスでの起動時に競合。
+
+#### 修正内容
+
+`WindowsXP.manifest` は Step 16 で `processorArchitecture="*"` に修正済みのため、**TortoiseAct.exe の再ビルドのみで解消**（ソース変更なし）。
+
+TortoiseAct.vcxproj は `win10_manifest.props` → `WindowsXP.manifest` を参照しており、リビルドで修正済みマニフェストが自動的に埋め込まれる。
+
+新マニフェスト確認:
+```xml
+<assemblyIdentity processorArchitecture="*" .../>                           ← x86 → *
+<dependency processorArchitecture="*" .../> <!-- Microsoft.Windows.Common-Controls -->
+<dependency processorArchitecture="amd64" .../> <!-- linker 自動生成 -->
+```
+
+#### ビルド・配布
+
+- [x] `TortoiseAct.exe` 再ビルド (Release/x64, 2026-05-02 02:46) ✅（警告のみ、エラー 0 件）
+- [x] マニフェスト確認: `processorArchitecture="*"` + `"amd64"` 共存、`x86` なし ✅
+- [x] `dist\TortoiseCVS-x64\TortoiseAct.exe` 更新 (3,396,096 bytes, 2026-05-02 02:46) ✅
+- [x] `dist\installer\TortoiseCVS-x64-Setup.exe` 再ビルド (8,450,749 bytes, 2026-05-02 02:47) ✅
+
+#### 動作確認 (Win11 VirtualBox 環境, 2026-05-02)
+
+- [x] TortoiseAct.exe 起動成功（アクティベーションコンテキスト競合エラーなし）✅
+- [x] Windows 11 モダンコンテキストメニューに CVS サブメニュー表示 ✅
+
+---
+
+### Step 19: GitHub リリース準備手順
+
+#### 前提確認
+
+- リモート: `https://github.com/iwadjp/G-CVSNT.git`
+- 既存タグ: `v2.5.05.3744-win11-x64`（初回リリース）
+- 新タグ候補: `v2.5.05.3744-win11-x64-r2`
+
+#### リリース対象の変更点 (初回リリースからの差分)
+
+| Step | 変更内容 |
+|------|---------|
+| 15 | ExplorerCommand アイコン整数 ID 化（IExplorerCommand 対応） |
+| 16 | TortoiseShell64.dll マニフェスト x86→* 修正（DLL ロード失敗解消） |
+| 17 | registry.iss に ExplorerCommandHandlers 登録確認・インストーラ更新 |
+| 18 | TortoiseAct.exe マニフェスト x86→* 修正、Win11 動作確認 |
+
+#### リリース手順
+
+**1. 変更ファイルをコミット**
+
+```bash
+cd D:\iwa\AI\Claude\cvs_app\G-CVSNT
+
+# 変更確認
+git status
+git diff --stat
+
+# ステージング
+git add src/Icons/WindowsXP.manifest
+git add src/TortoiseShell/TortoiseShellRes.h
+git add src/TortoiseShell/ExplorerCommand.cpp
+git add src/TortoiseShell/ContextMenu.cpp
+git add src/TortoiseShell/PropSheet.cpp
+git add build/install64-gh.iss
+git add build/registry.iss
+git add PROGRESS.md
+
+# コミット
+git commit -m "fix: マニフェスト x86→* 修正、ExplorerCommand アイコン整数 ID 化 (Step 15-18)"
+```
+
+**2. タグを作成**
+
+```bash
+git tag -a v2.5.05.3744-win11-x64-r2 -m "Win11/Win10 x64 対応リリース r2
+
+変更内容:
+- ExplorerCommand アイコン整数 ID 化（IExplorerCommand, IContextMenu 両対応）
+- TortoiseShell64.dll / TortoiseAct.exe マニフェスト processorArchitecture='x86'→'*' 修正
+  (Win10/11 でのアクティベーションコンテキスト競合によるロード失敗を解消)
+- ExplorerCommandHandlers 登録確認済み (Windows 11 モダンコンテキストメニュー)
+- Win11 VirtualBox 環境で動作確認済み
+"
+```
+
+**3. タグとブランチを push**
+
+```bash
+git push origin HEAD
+git push origin v2.5.05.3744-win11-x64-r2
+```
+
+**4. GitHub Release を作成**
+
+```bash
+gh release create v2.5.05.3744-win11-x64-r2 \
+  "D:\iwa\AI\Claude\cvs_app\dist\installer\TortoiseCVS-x64-Setup.exe" \
+  --title "TortoiseCVS G-CVSNT x64 v2.5.05.3744 r2 (Win10/11)" \
+  --notes "## 変更内容
+
+### バグ修正
+- TortoiseShell64.dll / TortoiseAct.exe のマニフェスト \`processorArchitecture\` を \`x86\` → \`*\` に修正
+  - Windows 10/11 で CVS コンテキストメニューが表示されない / TortoiseAct が起動できない問題を解消
+- ExplorerCommand アイコンを整数 ID 化（各コマンドに対応するアイコンが正しく表示されるように）
+
+### 動作確認済み環境
+- Windows 10 Pro (10.0.19045)
+- Windows 11 (VirtualBox)
+
+## インストール
+1. \`TortoiseCVS-x64-Setup.exe\` を実行（管理者権限不要）
+2. インストール後 Explorer を再起動
+
+前バージョン (\`v2.5.05.3744-win11-x64\`) からのアップグレードは上書きインストールで OK。"
+```
+
+#### 注意事項
+
+- `gh` コマンドは GitHub CLI。未インストールの場合は `winget install GitHub.cli` でインストール後、`gh auth login` で認証。
+- リリース前に `git status` で未コミットファイルがないことを確認すること。
+- `dist\installer\TortoiseCVS-x64-Setup.exe` (8,450,749 bytes) がリリースアセットになる。
+
+---
+
 ## 補足: ビルド環境
 
 | 項目 | 内容 |

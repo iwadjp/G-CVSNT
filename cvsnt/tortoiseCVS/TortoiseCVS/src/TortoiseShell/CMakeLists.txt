@@ -31,7 +31,8 @@ ADD_DEFINITIONS(
     -D_USRDLL
     -D__WXMSW__
     -DTORTOISESHELL
-    -DWINVER=0x0500
+    -DWINVER=0x0601
+    -D_WIN32_WINNT=0x0601
     -DSTRICT
     -DHAVE_ERRNO_H
 )
@@ -51,6 +52,7 @@ SET(CPP_SOURCE
    ../Utils/CrapLexer.cpp
    ColumnProvider.cpp
    ContextMenu.cpp
+   ExplorerCommand.cpp
    IconOverlay.cpp
    PropSheet.cpp
    QueryInfo.cpp

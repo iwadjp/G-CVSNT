@@ -7,7 +7,14 @@
 #define _STDAFX_H_
 
 #include "../Utils/FixCompilerBugs.h"
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0601
+#endif
+#ifndef WINVER
+#define WINVER 0x0601
+#endif
 #include <windows.h>
+#include <shlobj.h>
 #include "../Utils/FixWinDefs.h"
 #include <stdio.h>
 #include <stdlib.h>

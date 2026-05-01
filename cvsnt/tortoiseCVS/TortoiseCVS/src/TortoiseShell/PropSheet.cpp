@@ -70,7 +70,7 @@ STDMETHODIMP CShellExt::AddPages(LPFNADDPROPSHEETPAGE lpfnAddPage,
    psp.dwFlags = PSP_USEREFPARENT | PSP_USETITLE | PSP_USEICONID | PSP_USECALLBACK;
    psp.hInstance = g_hInstance;
    psp.pszTemplate = wxT("Revisions");
-   psp.pszIcon = wxT("IDI_TORTOISE");
+   psp.pszIcon = MAKEINTRESOURCE(IDI_TORTOISE);
    psp.pszTitle = wxT("CVS");
    psp.pfnDlgProc = PageProc;
    psp.lParam = reinterpret_cast<LPARAM>(sheet);

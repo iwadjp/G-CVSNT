@@ -42,6 +42,61 @@
 std::map<std::string, HBITMAP> CShellExt::ourBitmaps;
 std::set<HICON>                CShellExt::ourIcons;
 
+// Returns the integer resource ID for a named menu icon, or 0 if unknown.
+// Required because TortoiseShell.rc now uses integer-ID icons (defined in
+// TortoiseShellRes.h) instead of the old string-named IDI_* resources.
+static UINT GetIconIntId(const std::string& sName)
+{
+    static const struct { const char* str; UINT id; } kMap[] = {
+        { "IDI_TORTOISE",      IDI_TORTOISE      },
+        { "IDI_ABOUT",         IDI_ABOUT         },
+        { "IDI_ADD",           IDI_ADD           },
+        { "IDI_ANNOTATE",      IDI_ANNOTATE      },
+        { "IDI_BRANCH",        IDI_BRANCH        },
+        { "IDI_BROWSE",        IDI_BROWSE        },
+        { "IDI_CHECKOUT",      IDI_CHECKOUT      },
+        { "IDI_COMMAND",       IDI_COMMAND       },
+        { "IDI_COMMIT",        IDI_COMMIT        },
+        { "IDI_COMPARE",       IDI_COMPARE       },
+        { "IDI_CONFLICT",      IDI_CONFLICT      },
+        { "IDI_DELETE",        IDI_DELETE        },
+        { "IDI_HELP",          IDI_HELP          },
+        { "IDI_IGNORE",        IDI_IGNORE        },
+        { "IDI_LOCK",          IDI_LOCK          },
+        { "IDI_LOG",           IDI_LOG           },
+        { "IDI_MAKEMOD",       IDI_MAKEMOD       },
+        { "IDI_MERGE",         IDI_MERGE         },
+        { "IDI_PATCH",         IDI_PATCH         },
+        { "IDI_PATCH2",        IDI_PATCH2        },
+        { "IDI_REFRESH",       IDI_REFRESH       },
+        { "IDI_RELEASE",       IDI_RELEASE       },
+        { "IDI_REMOVE",        IDI_REMOVE        },
+        { "IDI_RENAME",        IDI_RENAME        },
+        { "IDI_RESOLVE",       IDI_RESOLVE       },
+        { "IDI_REVERT",        IDI_REVERT        },
+        { "IDI_REVISIONGRAPH", IDI_REVISIONGRAPH },
+        { "IDI_SETTINGS",      IDI_SETTINGS      },
+        { "IDI_SHOWEDITS",     IDI_SHOWEDITS     },
+        { "IDI_TAG",           IDI_TAG           },
+        { "IDI_UPDATE",        IDI_UPDATE        },
+    };
+    for (size_t i = 0; i < sizeof(kMap) / sizeof(kMap[0]); ++i)
+        if (sName == kMap[i].str) return kMap[i].id;
+    return 0;
+}
+
+// Loads a 16x16 shared HICON using the integer resource ID when available.
+// Falls back to string-name load for unknown identifiers (returns NULL).
+static HICON LoadMenuIconShared(const std::string& sIcon)
+{
+    UINT id = GetIconIntId(sIcon);
+    return id
+        ? (HICON)LoadImageA(g_hInstance, MAKEINTRESOURCEA(id),
+                            IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR | LR_SHARED)
+        : (HICON)LoadImageA(g_hInstance, sIcon.c_str(),
+                            IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR | LR_SHARED);
+}
+
 void CShellExt::ContextMenuInitialise()
 {
    TDEBUG_ENTER("CShellExt::ContextMenuInitialise");
@@ -197,8 +252,7 @@ STDMETHODIMP CShellExt::QueryContextMenu(HMENU hMenu,
                           mi.fMask = MIIM_STRING | MIIM_FTYPE | MIIM_ID | MIIM_BITMAP;
                           mi.hbmpItem = IconToBitmapPARGB32(iconname);
                       }
-                      else if (HICON h = (HICON) LoadImageA(g_hInstance, iconname.c_str(), IMAGE_ICON,
-                                                            16, 16, LR_DEFAULTCOLOR | LR_SHARED))
+                      else if (HICON h = LoadMenuIconShared(iconname))
                       {
                           mi.fMask = MIIM_STRING | MIIM_FTYPE | MIIM_ID | MIIM_BITMAP | MIIM_DATA;
                           mi.dwItemData = (ULONG_PTR) h;
@@ -206,7 +260,7 @@ STDMETHODIMP CShellExt::QueryContextMenu(HMENU hMenu,
                           ourIcons.insert(h);
                       }
                   }
-                  
+
                   InsertMenuItem(subMenu, indexSubMenu++, TRUE, &mi);
 
                   ++idCmd;
@@ -254,8 +308,7 @@ STDMETHODIMP CShellExt::QueryContextMenu(HMENU hMenu,
                           mi.fMask = MIIM_STRING | MIIM_FTYPE | MIIM_ID | MIIM_BITMAP;
                           mi.hbmpItem = IconToBitmapPARGB32(iconname);
                       }
-                      else if (HICON h = (HICON) LoadImageA(g_hInstance, iconname.c_str(), IMAGE_ICON,
-                                                            16, 16, LR_DEFAULTCOLOR | LR_SHARED))
+                      else if (HICON h = LoadMenuIconShared(iconname))
                       {
                           mi.fMask = MIIM_STRING | MIIM_FTYPE | MIIM_ID | MIIM_BITMAP | MIIM_DATA;
                           mi.dwItemData = (ULONG_PTR) h;
@@ -301,8 +354,7 @@ STDMETHODIMP CShellExt::QueryContextMenu(HMENU hMenu,
                  mi.fMask = MIIM_STRING | MIIM_FTYPE | MIIM_SUBMENU | MIIM_ID | MIIM_BITMAP;
                  mi.hbmpItem = IconToBitmapPARGB32(iconname);
              }
-             else if (HICON h = (HICON) LoadImageA(g_hInstance, iconname.c_str(),
-                                                   IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR | LR_SHARED))
+             else if (HICON h = LoadMenuIconShared(iconname))
              {
                  mi.fMask = MIIM_FTYPE | MIIM_STRING | MIIM_SUBMENU | MIIM_ID | MIIM_BITMAP | MIIM_DATA;
                  mi.wID = idCmd++;
@@ -509,7 +561,12 @@ HBITMAP CShellExt::IconToBitmap(const std::string& sIcon)
     rect.right = ::GetSystemMetrics(SM_CXMENUCHECK);
     rect.bottom = ::GetSystemMetrics(SM_CYMENUCHECK);
 
-    HICON hIcon = (HICON) LoadImageA(g_hInstance, sIcon.c_str(), IMAGE_ICON, rect.right, rect.bottom, LR_DEFAULTCOLOR);
+    UINT iconId = GetIconIntId(sIcon);
+    HICON hIcon = iconId
+        ? (HICON)LoadImageA(g_hInstance, MAKEINTRESOURCEA(iconId),
+                            IMAGE_ICON, rect.right, rect.bottom, LR_DEFAULTCOLOR)
+        : (HICON)LoadImageA(g_hInstance, sIcon.c_str(),
+                            IMAGE_ICON, rect.right, rect.bottom, LR_DEFAULTCOLOR);
     if (!hIcon)
         return 0;
 
@@ -578,7 +635,12 @@ HBITMAP CShellExt::IconToBitmapPARGB32(const std::string& sIcon)
         return ourBitmaps[sIcon];
     if (!myGdiplusToken)
         return 0;
-    HICON hIcon = (HICON) LoadImageA(g_hInstance, sIcon.c_str(), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
+    UINT iconId = GetIconIntId(sIcon);
+    HICON hIcon = iconId
+        ? (HICON)LoadImageA(g_hInstance, MAKEINTRESOURCEA(iconId),
+                            IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR)
+        : (HICON)LoadImageA(g_hInstance, sIcon.c_str(),
+                            IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
     if (!hIcon)
         return 0;
     Gdiplus::Bitmap icon(hIcon);

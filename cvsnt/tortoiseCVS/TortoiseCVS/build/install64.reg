@@ -67,6 +67,15 @@ Windows Registry Editor Version 5.00
 @="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
 "ThreadingModel"="Apartment"
 
+; --- ExplorerCommand COM 登録 (Windows 11 モダンコンテキストメニュー) ---
+
+[HKEY_CLASSES_ROOT\CLSID\{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}]
+@="TortoiseCVS"
+
+[HKEY_CLASSES_ROOT\CLSID\{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}\InProcServer32]
+@="C:\\Program Files\\TortoiseCVS\\TortoiseShell64.dll"
+"ThreadingModel"="Apartment"
+
 ; --- Shell Extensions Approved ---
 
 [HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved]
@@ -78,6 +87,7 @@ Windows Registry Editor Version 5.00
 "{17F29A72-FE71-4A44-B64F-B9F3A60E3D94}"="Tortoise CVS"
 "{407086D3-BB16-4B50-A3B2-A965C002D7CF}"="Tortoise CVS"
 "{488E3E10-3D35-4F85-9C38-143E8D4396C7}"="Tortoise CVS"
+"{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}"="Tortoise CVS ExplorerCommand"
 
 ; --- アイコンオーバーレイ識別子 ---
 
@@ -135,6 +145,20 @@ Windows Registry Editor Version 5.00
 
 [HKEY_CLASSES_ROOT\Folder\shellex\ColumnHandlers\{5d1cb710-1c4b-11d4-bed5-005004b1f42f}]
 @="Tortoise CVS"
+
+; --- ExplorerCommandHandlers (Windows 11 モダンコンテキストメニュー) ---
+
+[HKEY_CLASSES_ROOT\*\ShellEx\ExplorerCommandHandlers\TortoiseCVS]
+@="{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}"
+
+[HKEY_CLASSES_ROOT\Directory\ShellEx\ExplorerCommandHandlers\TortoiseCVS]
+@="{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}"
+
+[HKEY_CLASSES_ROOT\Drive\ShellEx\ExplorerCommandHandlers\TortoiseCVS]
+@="{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}"
+
+[HKEY_CLASSES_ROOT\Folder\ShellEx\ExplorerCommandHandlers\TortoiseCVS]
+@="{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}"
 
 ; --- CVS URL プロトコルハンドラー ---
 

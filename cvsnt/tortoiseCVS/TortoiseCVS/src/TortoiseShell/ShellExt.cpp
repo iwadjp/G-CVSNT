@@ -75,6 +75,7 @@ private:
 #include <shlguid.h>
 
 #include "ShellExt.h"
+#include "ExplorerCommand.h"
 
 // Reference count of this DLL, must be aligned because of InterlockedIncrement
 #if defined(_MSC_VER) && (_MSC_VER >= 1300)
@@ -182,10 +183,14 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppvOut)
     if (whichClass != TORTOISE_OLE_INVALID)
     {
         CShellExtClassFactory *pcf = new CShellExtClassFactory(whichClass);
-      
+
         return pcf->QueryInterface(riid, ppvOut);
     }
-   
+
+    // Windows 11 modern context menu handler
+    if (IsEqualIID(rclsid, CLSID_TortoiseCVSExplCmd))
+        return ExplorerCommand_CreateClassFactory(riid, ppvOut);
+
     return CLASS_E_CLASSNOTAVAILABLE;
 }
 

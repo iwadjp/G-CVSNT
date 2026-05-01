@@ -72,3 +72,31 @@ Root: HKCR64; Subkey: CVS; ValueType: string; ValueName: ; ValueData: "URL:CVS P
 Root: HKCR64; Subkey: CVS; ValueType: string; ValueName: "URL Protocol"; ValueData: ; Check: IsWin64
 Root: HKCR64; Subkey: CVS\DefaultIcon; ValueType: string; ValueName: ; ValueData: "{app}\TortoiseAct.exe"; Check: IsWin64
 Root: HKCR64; Subkey: CVS\shell\open\command; ValueType: string; ValueName: ; ValueData: """{app}\TortoiseAct.exe"" cvsurl -u ""%1"""; Check: IsWin64
+; ExplorerCommand COM registration (Windows 11 modern context menu)
+Root: HKCR32; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Flags: uninsdeletekey; Check:
+Root: HKCR32; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; ValueType: string; ValueName: ; ValueData: TortoiseCVS; Check:
+Root: HKCR32; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}\InProcServer32; ValueType: string; ValueName: ; ValueData: {app}\TortoiseShell.dll; Check:
+Root: HKCR32; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}\InProcServer32; ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check:
+Root: HKCR64; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Flags: uninsdeletekey; Check: IsWin64
+Root: HKCR64; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; ValueType: string; ValueName: ; ValueData: TortoiseCVS; Check: IsWin64
+Root: HKCR64; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}\InProcServer32; ValueType: string; ValueName: ; ValueData: {app}\TortoiseShell64.dll; Check: IsWin64
+Root: HKCR64; Subkey: CLSID\{{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}\InProcServer32; ValueType: string; ValueName: ThreadingModel; ValueData: Apartment; Check: IsWin64
+Root: HKLM32; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved; ValueType: string; ValueName: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; ValueData: TortoiseCVS; Flags: uninsdeletevalue
+Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved; ValueType: string; ValueName: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; ValueData: TortoiseCVS; Flags: uninsdeletevalue; Check: IsWin64
+; ExplorerCommandHandlers for *, Directory, Drive, Folder
+Root: HKCR32; Subkey: *\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check:
+Root: HKCR32; Subkey: *\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check:
+Root: HKCR64; Subkey: *\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check: IsWin64
+Root: HKCR64; Subkey: *\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check: IsWin64
+Root: HKCR32; Subkey: Directory\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check:
+Root: HKCR32; Subkey: Directory\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check:
+Root: HKCR64; Subkey: Directory\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check: IsWin64
+Root: HKCR64; Subkey: Directory\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check: IsWin64
+Root: HKCR32; Subkey: Drive\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check:
+Root: HKCR32; Subkey: Drive\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check:
+Root: HKCR64; Subkey: Drive\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check: IsWin64
+Root: HKCR64; Subkey: Drive\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check: IsWin64
+Root: HKCR32; Subkey: Folder\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check:
+Root: HKCR32; Subkey: Folder\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check:
+Root: HKCR64; Subkey: Folder\ShellEx\ExplorerCommandHandlers\TortoiseCVS; Flags: uninsdeletekey; Check: IsWin64
+Root: HKCR64; Subkey: Folder\ShellEx\ExplorerCommandHandlers\TortoiseCVS; ValueType: string; ValueName: ; ValueData: {{5d1cb71a-1c4b-11d4-bed5-005004b1f42f}; Check: IsWin64
