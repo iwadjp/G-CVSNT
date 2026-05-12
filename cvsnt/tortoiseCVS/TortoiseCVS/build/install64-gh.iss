@@ -5,6 +5,9 @@
 
 #define APPVER "2.5.05.3744"
 #define DISTDIR "..\..\..\..\..\dist\TortoiseCVS-x64"
+; SparsePackage paths (relative from build\)
+#define SPKGREL "..\..\..\..\..\SparsePackage\bin\x64\Release"
+#define SPKGSRC "..\..\..\..\..\SparsePackage"
 
 [Setup]
 AppID=TortoiseCVS
@@ -80,6 +83,15 @@ Source: {#DISTDIR}\mdns\mini.dll;         DestDir: {app}\mdns; Flags: restartrep
 
 ; xdiff plugins
 Source: {#DISTDIR}\xdiff\xml.dll;         DestDir: {app}\xdiff; Flags: restartreplace uninsrestartdelete ignoreversion
+
+; SparsePackage – Windows 11 top-level context menu (safe no-op on Windows 10)
+Source: {#SPKGREL}\TortoiseCVS_ExCmd.dll;  DestDir: {app}\SparsePackage; Flags: ignoreversion
+Source: {#SPKGREL}\AppxManifest.xml;        DestDir: {app}\SparsePackage; Flags: ignoreversion
+Source: {#SPKGREL}\Assets\*;               DestDir: {app}\SparsePackage\Assets; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: {#SPKGSRC}\register_sparse.ps1;    DestDir: {app}\SparsePackage; Flags: ignoreversion
+; Sparse Package manifest requires Executable="TortoiseCVS.exe" at ExternalLocation.
+; TortoiseAct.exe uses registry for its own root path, so the rename is safe.
+Source: {#DISTDIR}\TortoiseAct.exe;        DestDir: {app}\SparsePackage; DestName: TortoiseCVS.exe; Flags: ignoreversion
 
 ; TortoiseOverlays (bundled for systems without TortoiseGit/SVN)
 ; License: TortoiseSVN Project (https://tortoisesvn.net) - see installed License.txt
@@ -209,10 +221,37 @@ Root: HKLM64; Subkey: SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\ShellIc
 Name: {group}\Preferences; Filename: {app}\TortoiseAct.exe; Parameters: CVSPrefs
 Name: {group}\About;       Filename: {app}\TortoiseAct.exe; Parameters: CVSAbout
 
+[Run]
+; Register Sparse Package for Windows 11 top-level context menu.
+; runascurrentuser: per-user package, no elevation needed.
+; register_sparse.ps1 exits 0 silently on Windows 10.
+Filename: powershell.exe; \
+  Parameters: "-ExecutionPolicy Bypass -NonInteractive -File ""{app}\SparsePackage\register_sparse.ps1"""; \
+  WorkingDir: {app}\SparsePackage; \
+  Flags: runascurrentuser; \
+  Description: "Register Windows 11 context menu (safe skip on Windows 10)"
+
+[UninstallRun]
+; Remove Sparse Package registration when uninstalling on Windows 11.
+Filename: powershell.exe; \
+  Parameters: "-ExecutionPolicy Bypass -NonInteractive -Command ""Get-AppxPackage TortoiseCVS.ContextMenu | Remove-AppxPackage"""; \
+  Flags: runascurrentuser; \
+  RunOnceId: "SparsePackageUnregister"; \
+  Check: IsWin11
+
 [UninstallDelete]
 Type: Files; Name: {app}\TortoiseSetupHelper.exe
+Type: filesandordirs; Name: {app}\SparsePackage
 
 [Code]
+function IsWin11(): Boolean;
+var
+  V: TWindowsVersion;
+begin
+  GetWindowsVersionEx(V);
+  Result := (V.Build >= 22000);
+end;
+
 function TortoiseOverlaysInstalled(): Boolean;
 begin
   Result := RegKeyExists(HKLM,
