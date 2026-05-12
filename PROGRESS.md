@@ -1509,6 +1509,207 @@ gh release create v2.5.05.3744-win11-x64-r2 \
 
 ---
 
+### Step 20: Sparse Package / Win11トップメニュー対応インストーラ準備 (Win10確認済み, 2026-05-02 / Win11確認待ち)
+
+#### 背景と目的
+
+現行の `registry.iss` / `install64-gh.iss` は HKCR への COM 登録（`{5d1cb71a}` ExplorerCommandHandlers）で Windows 11 モダンメニューに対応しているが、管理者権限が必要。Sparse Package 方式は**管理者権限なし**でパッケージ ID を取得でき、Windows 11 の fluent メニュー (`desktop4:FileExplorerContextMenus`) への登録が可能になる。これはサービス不要でよりクリーンな登録方式である。
+
+#### 位置付け
+
+TortoiseShell.dll とは独立した**別 DLL** (`TortoiseCVS_ExCmd.dll`) として実装。ExplorerCommand インターフェースを最小実装し、TortoiseAct.exe を `/command:xxx /path:"..."` で起動する呼び出しシムとして機能する。
+
+#### 作業場所
+
+```
+D:\iwa\AI\Claude\cvs_app\SparsePackage\
+  src\
+    ExplorerCommand.h       IExplorerCommand/Provider 宣言、GUID 定義
+    ExplorerCommand.cpp     実装（CreateProcessW でTortoiseAct.exe起動）
+    dllmain.cpp             DLL エントリポイント、IClassFactory、COM エクスポート
+  Assets\
+    StoreLogo.png           (50x50)
+    Logo.png                (50x50)
+    Square44x44Logo.png     (44x44)
+    Square150x150Logo.png   (150x150)
+    SplashScreen.png        (620x300)
+  bin\x64\Release\          ← ExternalLocation（登録時参照先）
+    TortoiseCVS_ExCmd.dll   (38 KB)
+    AppxManifest.xml
+    Assets\                 (5枚コピー済み)
+  AppxManifest.xml          Sparse Package マニフェスト
+  TortoiseCVS_ExCmd.vcxproj MSVC 2022 / v143 / x64 プロジェクト
+  TortoiseCVS_ExCmd.def     エクスポート定義
+  register_sparse.ps1       登録スクリプト（Win10 では安全スキップ）
+  build_progress.json       OpenClaw 連携ログ
+```
+
+#### 技術詳細
+
+| 項目 | 内容 |
+|------|------|
+| CLSID | `{558F757F-4158-4F13-92E7-4867495CD0CF}` (2026-05-02 生成) |
+| マニフェスト方式 | `com:InProcessServer` + `desktop4:FileExplorerContextMenus` |
+| 対象 Win バージョン | MinVersion 10.0.22000.0 (Windows 11) |
+| 登録方式 | `Add-AppxPackage -ExternalLocation` (PowerShell 5.1 ネイティブコマンドレット) |
+| ビルドツール | MSVC 2022 (v143), x64, C++17, runtimeobject.lib |
+| GUID 定義方式 | `__declspec(selectany)` (ヘッダーファイル内で定義可能) |
+| TortoiseAct 呼び出し形式 | `TortoiseAct.exe <verb> -l "<path>"` (cvsupdate/cvscommit/cvslog) |
+| TortoiseCVS.exe の実体 | TortoiseAct.exe のコピー (マニフェスト要件、レジストリで root 解決するため安全) |
+
+#### 完了済み作業 (2026-05-02)
+
+- [x] `TortoiseCVS_ExCmd.dll` ビルド成功 (0 エラー、警告 1 件 MSB8012 は出力への無影響) ✅
+- [x] GUID 4個を PowerShell で生成・置換 (ExplorerCommand.h / AppxManifest.xml / build_progress.json) ✅
+- [x] Assets プレースホルダー PNG 5枚生成 (System.Drawing) ✅
+- [x] PostBuildEvent で Assets を bin\x64\Release\Assets\ に自動コピー ✅
+- [x] `register_sparse.ps1` 完全書き直し:
+  - `#Requires -RunAsAdministrator` 削除 (per-user 登録に不要)
+  - `Add-AppxPackage -ExternalLocation` 方式に変更 (WinRT 型リテラル構文を廃止 → PS 5.1 パースエラー解消)
+  - ExternalLocation 自動検出 (スクリプト横に DLL があれば使用、なければ bin\x64\Release へ)
+  - try/catch でエラーを警告として報告し exit 1 (TortoiseCVS 本体は無影響)
+  - Win10 安全テスト通過: build 19045 → "Skipping..." メッセージ + exit 0 ✅
+- [x] `ExplorerCommand.h` g_verbs[] 修正: `/command:update` → `cvsupdate` 等 (TortoiseAct.exe 正規引数) ✅
+- [x] `ExplorerCommand.cpp` Invoke() 修正: `/path:"..."` → `-l "..."` ✅
+- [x] `TortoiseCVS_ExCmd.dll` 再ビルド (修正後, 2026-05-02 19:17) ✅
+- [x] `install64-gh.iss` に SparsePackage 統合:
+  - `#define SPKGREL / SPKGSRC` 追加
+  - `[Files]` — DLL / Manifest / Assets / PS1 / TortoiseAct.exe→TortoiseCVS.exe コピー
+  - `[Run]` — `powershell ... register_sparse.ps1` (Flags: runascurrentuser、PS1 内で Win10 ガード)
+  - `[UninstallRun]` — `Remove-AppxPackage` (Check: IsWin11, RunOnceId 付き)
+  - `[UninstallDelete]` — `{app}\SparsePackage` ディレクトリ
+  - `[Code]` — `IsWin11()` 関数 (V.Build >= 22000)
+- [x] インストーラ再ビルド: 警告 0 件、エラー 0 件 ✅ (6.188 sec)
+- [x] Win10 安全確認: register_sparse.ps1 が parse 成功・exit 0 で終了 ✅
+
+#### Win10 確認結果 (2026-05-03)
+
+- [x] 既存 TortoiseCVS をアンインストール ✅
+- [x] OS 再起動 ✅
+- [x] 最新 `TortoiseCVS-x64-Setup.exe` をインストール ✅
+- [x] 右クリックメニューが従来通り動作することを確認 ✅
+- [x] CVS checkout / update / commit が動作することを確認 ✅
+- [x] About ダイアログで CVSNT client/server version が表示されることを確認 ✅
+- [x] `register_sparse.ps1` が Windows 10 build 19045 で安全にスキップされることを確認 ✅
+- [x] スキップ時 exit code 0 ✅
+- [x] Win10 環境への悪影響なし ✅
+
+#### Win11 残作業
+
+- [ ] 最新インストーラをインストール
+- [ ] Sparse Package 登録がスキップされず実行されること
+- [ ] 登録エラーが出ないこと
+- [ ] Explorer 再起動または OS 再起動
+- [ ] Win11 新右クリックメニューのトップレベルに TortoiseCVS / CVS が表示されること（「その他のオプション」側だけになっていないこと）
+- [ ] 以下のメニュー実行確認:
+  - CVS Checkout
+  - CVS Update
+  - CVS Commit
+  - CVS Log
+- [ ] 既存機能確認:
+  - About 表示
+  - アイコンオーバーレイ
+  - 日本語ファイル名
+
+#### 証明書関連メモ
+
+- 今回の Win11 検証段階では証明書対応は必須ではない
+- 一般配布・SmartScreen 警告低減・企業展開・正式な MSIX/Appx 運用ではコード署名・パッケージ署名を検討する
+- `installer.dll` / WiX / MSI 関連は今回の対象外
+- GitHub r2 リリースは Win11 確認後に判断
+- 現時点では後回し
+
+---
+
+## 現在の全体ステータスサマリー（2026-05-03 更新）
+
+### 完成・配布可能な成果物
+
+| 成果物 | パス | 状態 |
+|--------|------|------|
+| `TortoiseCVS-x64-Setup.exe` | `dist\installer\` | **配布可能** (Step 20 SparsePackage 統合済み) |
+| `TortoiseShell64.dll` | `dist\TortoiseCVS-x64\` | Step 16 修正済み |
+| `TortoiseAct.exe` | `dist\TortoiseCVS-x64\` | Step 18 修正済み |
+| `cvs.exe` (CVSNT 3.5.24 Build 9617) | `dist\TortoiseCVS-x64\` | Step 11 修正済み |
+| `TortoiseCVS_ExCmd.dll` (Sparse Package用) | `SparsePackage\bin\x64\Release\` | インストーラ同梱済み、Win10 無影響確認済み、Win11 テスト待ち |
+
+### インストーラの Win11 対応内容（Step 20 完了後）
+
+インストーラ (`TortoiseCVS-x64-Setup.exe`) は Win10/11 両対応:
+- **Win10**: 従来通り `TortoiseShell64.dll` + HKCR 登録で動作
+- **Win11**: 上記に加え `SparsePackage\` を配置し `register_sparse.ps1` を自動実行 (per-user, 管理者不要)。Win10 上では PS1 が自動スキップ (exit 0)。
+
+### 未完了
+
+| タスク | Step | 備考 |
+|--------|------|------|
+| GitHub リリース (r2) | Step 19 | Win11 確認後に判断 |
+| Win11 Sparse Package 実機テスト | Step 20 | Win11 で `register_sparse.ps1` 実行・モダンメニュー確認 |
+| `installer.dll` 再ビルド | Step 11 残課題 | VS 修復後。今回対象外 |
+| コード署名・パッケージ署名 | Step 20 証明書 | 一般配布・企業展開時に検討。現時点では後回し |
+
+---
+
+## Step 21: Win11 トップメニュー対応（Sparse Package）— 中断 (2026-05-12)
+
+### 実施内容
+
+#### SparsePackage の実装
+- `SparsePackage\` フォルダを作成
+  - `AppxManifest.xml` — Sparse Package マニフェスト
+  - `register_sparse.ps1` — 登録スクリプト（Win10 は自動スキップ）
+  - `TortoiseCVS_ExCmd.dll` — IExplorerCommand 実装 DLL
+  - `Assets\` — アイコン PNG 5枚
+- `install.bat` に Sparse Package 登録処理を追加
+  - `TortoiseAct.exe` → `SparsePackage\TortoiseCVS.exe` のコピー処理
+  - Win11 判定後に `register_sparse.ps1` を呼び出す処理
+
+#### AppxManifest.xml の修正（公式サンプルとの照合）
+
+Microsoft 公式サンプル (`AppModelSamples/Samples/PackageWithExternalLocation`) との差分を特定し、以下を修正:
+
+| 差分 | 修正前 | 修正後 |
+|------|--------|--------|
+| EntryPoint 属性 | `EntryPoint="Windows.FullTrustApplication"` (旧形式) | `uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App"` |
+| ItemType/Verb スキーマ | `desktop4:ItemType` / `desktop4:Verb` | `desktop5:ItemType` / `desktop5:Verb` + `xmlns:desktop5` 追加 |
+| Capabilities | `runFullTrust` のみ | `runFullTrust` + `unvirtualizedResources` 追加 |
+| VisualElements | `AppListEntry` 属性なし | `AppListEntry="none"` 追加 |
+
+修正対象ファイル:
+- `SparsePackage\AppxManifest.xml`
+- `dist\TortoiseCVS-x64\SparsePackage\AppxManifest.xml`
+
+### 判明した制約（中断理由）
+
+#### Sparse Package 登録には以下のいずれかが必要
+1. **開発者モードの有効化** — 業務PC はグループポリシーで無効・変更不可
+2. **コード署名済み証明書** — 取得には費用が発生（有料）
+
+#### 業務PC の状況
+- Windows 11 Build 26100
+- グループポリシーにより開発者モードが無効化されており、ユーザーが変更できない
+- `Add-AppxPackage` は署名なし Sparse Package を拒否する（`0x80070057` 等）
+
+#### TortoiseGit の事例
+- TortoiseGit は Win11 新右クリックメニューのトップレベルに表示される
+- 実現方式が異なる可能性があり、要調査
+
+### 残課題
+
+| 課題 | 優先度 | 備考 |
+|------|--------|------|
+| コード署名証明書の取得 | 低 | 有料。EV 証明書は SmartScreen 警告にも有効 |
+| TortoiseGit の実装方式を調査 | 中 | Sparse Package 以外の方式かもしれない |
+| Win11 トップメニュー対応の再挑戦 | 低 | 証明書取得または別方式確立後 |
+
+### 現状
+
+- **「その他のオプション」からは引き続き使用可能** ✅
+- **TortoiseCVS の機能自体は正常動作** ✅（checkout / update / commit / log）
+- Win11 新メニュー（トップレベル）への表示は未達成
+
+---
+
 ## 補足: ビルド環境
 
 | 項目 | 内容 |
